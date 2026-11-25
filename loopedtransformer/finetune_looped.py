@@ -447,7 +447,6 @@ if __name__ == "__main__":
     model_list = ["looped_model_sup.bin-120000"]
     loop_num_list = [3, 6, 9]
     loop_num_list = [24]
-    # model_list = ["looped_model_sup_no_random.bin-120000"]
     # model_list = ["none"]
     for dataset in file_list:
         for pretrained_model in model_list:

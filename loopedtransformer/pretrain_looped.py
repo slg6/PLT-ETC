@@ -76,10 +76,6 @@ def main():
     parser.add_argument("--loop_num", type=int, default=None,
                         help="循环次数。缺省时读取配置文件中的 loop_num，"
                              "配置文件也没有时等于 layers_num。")
-    parser.add_argument("--loop_num_min", type=int, default=None,
-                        help="随机深度预训练的循环次数下界。设置后训练阶段每个 step 从 "
-                             "[loop_num_min, loop_num] 均匀采样实际循环次数，"
-                             "使任意深度的输出都被训练到。缺省表示固定 loop_num。")
     parser.add_argument("--loop_sup_weight", type=float, default=None,
                         help="逐循环监督损失权重。中间各轮循环的隐藏态接入共享 MLM/FM 头，"
                              "损失取平均后按该权重计入总损失，0 表示关闭。")
@@ -149,19 +145,9 @@ def main():
             cli_loop_num = int(sys.argv[i + 1])
     if cli_loop_num is not None:
         args.loop_num = cli_loop_num
-    cli_loop_num_min = None
-    for i, a in enumerate(sys.argv):
-        if a == "--loop_num_min" and i + 1 < len(sys.argv):
-            cli_loop_num_min = int(sys.argv[i + 1])
-    if cli_loop_num_min is not None:
-        args.loop_num_min = cli_loop_num_min
 
-    args.loop_num_min = getattr(args, "loop_num_min", None)
     args.loop_sup_weight = getattr(args, "loop_sup_weight", None) or 0.0
     args.loop_distill_weight = getattr(args, "loop_distill_weight", None) or 0.0
-    if args.loop_num_min is not None:
-        assert 1 <= args.loop_num_min <= args.loop_num, \
-            "loop_num_min 必须位于 [1, loop_num]。"
 
     ranks_num = len(args.gpu_ranks)
 
@@ -192,7 +178,7 @@ def main():
         from loopedtransformer.looped_trainer import LoopedBertPacketsTrainer
         str2trainer["bertpackets"] = LoopedBertPacketsTrainer
     print(f"LoopedTransformer pretrain: encoder={args.encoder}, "
-          f"loop_num={args.loop_num}, loop_num_min={args.loop_num_min}, "
+          f"loop_num={args.loop_num}, "
           f"loop_sup_weight={args.loop_sup_weight}, "
           f"loop_distill_weight={args.loop_distill_weight}")
     def _save_model_without_mlm(model, model_path):

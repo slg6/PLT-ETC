@@ -1,4 +1,3 @@
-import random
 
 import torch
 import torch.nn as nn
@@ -13,7 +12,6 @@ class LoopedTransformerEncoder(TransformerEncoder):
         args.parameter_sharing = True
         super().__init__(args)
         self.loop_num = getattr(args, "loop_num", None) or args.layers_num
-        self.loop_num_min = getattr(args, "loop_num_min", None)
 
     def forward(self, emb, seg, input_ids=None, proto=None,
                 output_attentions=False, output_loop_hiddens=False):
@@ -35,9 +33,6 @@ class LoopedTransformerEncoder(TransformerEncoder):
             position_bias = None
 
         loop_num = self.loop_num
-        if self.training and self.loop_num_min is not None \
-                and self.loop_num_min < self.loop_num:
-            loop_num = random.randint(self.loop_num_min, self.loop_num)
 
         loop_hiddens = []
         probss = []
