@@ -16,7 +16,7 @@ traffictransformer/        # Baseline system (data, vocab, pre-training, fine-tu
 ├── fine-tuning/           # Baseline classification fine-tuning (run_classifier.py)
 ├── models/bert/           # BERT-family configuration files
 ├── uer/                   # Pre-training framework source code
-└── 运行流程.md             # Original pipeline of the baseline system
+└── RUN.md             # Original pipeline of the baseline system
 
 loopedtransformer/         # Looped-Transformer additions (core contribution of this repo)
 ├── build.py               # Injects the looped encoders into the uer registry at runtime
@@ -54,7 +54,7 @@ A GPU environment is required (torch + CUDA).
 
 ## Pipeline
 
-### 1. Data preparation and vocabulary (see traffictransformer/运行流程.md)
+### 1. Data preparation and vocabulary (see traffictransformer/RUN.md)
 
 ```bash
 # pcap -> flow (use fine-data/SplitCap.exe on Windows)
