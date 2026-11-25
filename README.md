@@ -102,3 +102,7 @@ lists (`file_list`, `model_list`, `loop_num_list`); edit that block when running
 | `--only_test` | Test only |
 | `--labels_num` | Number of labels (inferred from the training set if omitted; required with `--only_test`) |
 | `--earlystop` | Early-stop patience in epochs (default 5) |
+
+
+
+This code is based on [UER-py](https://github.com/dbiir/UER-py). Many thanks to the authors.
