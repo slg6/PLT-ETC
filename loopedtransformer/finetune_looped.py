@@ -10,9 +10,6 @@
 2. 分类前向对编码器输出做兼容处理。原始脚本写作 encoder(emb, seg)[0]，
    是因为普通 TransformerEncoder 的返回语句受运算符优先级影响恒为元组。
    循环编码器正常返回张量，直接索引 [0] 会误取 batch 维，这里统一处理。
-3. 新增弹性深度微调。--elastic_loop 开启后，每个训练步从
-   [--loop_num_min, --loop_num_max] 均匀采样循环次数，
-   使同一套权重适应多种循环深度。
 4. 新增循环深度扫描评估。--eval_loop_nums 接受逗号分隔的深度列表，
    测试阶段逐个深度评估并打印精度-深度对照表，
    用于展示一套权重覆盖多档算力预算的特性。
@@ -26,10 +23,6 @@
         --config_path loopedtransformer/configs/looped_base_config.json \
         --loop_num 12 --epochs_num 10
 
-    # 弹性深度微调，并在测试集上扫描多个循环深度
-    python3 loopedtransformer/finetune_looped.py ... \
-        --elastic_loop --loop_num_min 2 --loop_num_max 12 \
-        --eval_loop_nums 2,4,6,8,12
 
 本脚本不修改 traffictransformer 下的任何文件。
 """
@@ -328,12 +321,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
     parser.add_argument("--only_test", action="store_true", help="Only run test.")
     parser.add_argument("--loop_num", type=int, default=None,
                         help="循环次数。缺省时读取配置文件，配置文件也没有时等于 layers_num。")
-    parser.add_argument("--elastic_loop", action="store_true",
-                        help="弹性深度微调。每个训练步随机采样循环次数。")
-    parser.add_argument("--loop_num_min", type=int, default=2,
-                        help="弹性深度采样下界。")
-    parser.add_argument("--loop_num_max", type=int, default=None,
-                        help="弹性深度采样上界，缺省等于 loop_num。")
     parser.add_argument("--eval_loop_nums", type=str, default="",
                         help='逗号分隔的深度列表，如 "2,4,6,8,12"。'
                              "测试阶段逐个深度评估，输出精度-深度对照表。")
@@ -380,8 +367,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
         args.output_model_path = f"loopedtransformer/finetune-output-sup/{dataset}/loop_num_max{str(args.loop_num)}.bin"
     if pretrained_model=='looped_model_sup.bin-120000' and args.loop_num == 12:
         args.output_model_path = f"loopedtransformer/finetune-output-sup/{dataset}/best_model.bin"
-    assert not (args.dynamic_halting and args.elastic_loop), \
-        "--dynamic_halting 与 --elastic_loop 不能同时开启。"
     if args.dynamic_halting:
         args.encoder = "halting_looped_transformer"
 
@@ -397,17 +382,13 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
     model = LoopedClassifier(args)
     if hasattr(model.encoder, "loop_num"):
         model.encoder.loop_num = args.loop_num
-    if args.elastic_loop:
-        assert hasattr(model.encoder, "loop_num"), "弹性深度微调要求使用 looped_transformer 编码器。"
-        args.loop_num_max = args.loop_num_max or args.loop_num
-        assert 1 <= args.loop_num_min <= args.loop_num_max, "loop_num_min 必须位于 [1, loop_num_max]。"
 
     load_pretrained_parameters(args, model)
 
     args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = model.to(args.device)
-    print("Finetune: encoder=%s, loop_num=%d, elastic=%s"
-          % (args.encoder, getattr(model.encoder, "loop_num", -1), args.elastic_loop))
+    print("Finetune: encoder=%s, loop_num=%d"
+          % (args.encoder, getattr(model.encoder, "loop_num", -1)))
 
     if args.only_test:
         assert args.test_path is not None, "only_test 模式需要提供 --test_path。"
@@ -448,8 +429,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
         model.train()
         for i, (src_batch, tgt_batch, seg_batch) in enumerate(
                 batch_loader(args.batch_size, src, tgt, seg)):
-            if args.elastic_loop:
-                model.encoder.loop_num = random.randint(args.loop_num_min, args.loop_num_max)
             model.zero_grad()
             loss, _ = model(src_batch.to(args.device),
                             tgt_batch.to(args.device),
