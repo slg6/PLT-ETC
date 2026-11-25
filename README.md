@@ -1,94 +1,97 @@
 # PLT-ETC
 
-基于循环 Transformer（Looped Transformer）的加密流量分类系统。在 UER 风格的预训练框架之上，
-将编码器替换为**参数共享的循环 Transformer**，并支持**动态早停（Adaptive Computation Time, ACT）**：
-简单样本一两轮循环即可停机，困难样本多循环，`loop_num` 仅作为最大步数兜底，
-从而用一套权重覆盖多档算力预算。
+Encrypted traffic classification built on a **Looped Transformer** encoder. On top of a UER-style
+pre-training framework, the encoder is replaced with a **weight-shared looped Transformer** that
+supports **dynamic halting (Adaptive Computation Time, ACT)**: easy samples halt after one or two
+loop iterations while hard ones iterate more, and `loop_num` only serves as a maximum-step
+fallback — a single set of weights therefore covers multiple compute budgets.
 
-## 目录结构
+## Repository layout
 
 ```
-traffictransformer/        # 基线系统（数据、词表、预训练、微调、uer 框架）
-├── fine-data/             # 微调数据生成（pcap -> flow -> tsv）
-├── vocab_gen/             # 流量特征提取与词表生成
-├── pre-training/          # MLM 预训练（preprocess.py -> pretrain.py）
-├── fine-tuning/           # 基线分类微调（run_classifier.py）
-├── models/bert/           # bert 系列配置文件
-├── uer/                   # 预训练框架源码
-└── 运行流程.md             # 基线系统原始处理流程
+traffictransformer/        # Baseline system (data, vocab, pre-training, fine-tuning, uer framework)
+├── fine-data/             # Fine-tuning data generation (pcap -> flow -> tsv)
+├── vocab_gen/             # Traffic feature extraction and vocabulary generation
+├── pre-training/          # MLM pre-training (preprocess.py -> pretrain.py)
+├── fine-tuning/           # Baseline classification fine-tuning (run_classifier.py)
+├── models/bert/           # BERT-family configuration files
+├── uer/                   # Pre-training framework source code
+└── 运行流程.md             # Original pipeline of the baseline system
 
-loopedtransformer/         # 循环 Transformer 新增模块（本仓库核心增量）
-├── build.py               # 向 uer 注册表运行时注入循环编码器（不改 uer 源码）
-├── looped_encoder.py      # 参数共享循环编码器（基线）
-├── halting_looped_encoder.py  # 动态停机循环编码器（ACT，halting_looped_transformer）
-├── looped_model.py        # 循环编码器模型外壳（逐循环监督 + 一致性蒸馏）
-├── looped_trainer.py      # 循环预训练 trainer
-├── pretrain_looped.py     # 循环预训练入口
-├── finetune_looped.py     # 循环微调入口（分类）
-└── configs/               # 循环模型超参配置（如 looped_random_sup_config.json）
+loopedtransformer/         # Looped-Transformer additions (core contribution of this repo)
+├── build.py               # Injects the looped encoders into the uer registry at runtime
+├── looped_encoder.py      # Weight-shared looped encoder (baseline)
+├── halting_looped_encoder.py  # Looped encoder with dynamic halting (halting_looped_transformer)
+├── looped_model.py        # Model wrapper for the looped encoder (per-loop supervision + consistency distillation)
+├── looped_trainer.py      # Trainer for looped pre-training
+├── pretrain_looped.py     # Entry point for looped pre-training
+├── finetune_looped.py     # Entry point for classification fine-tuning
+└── configs/               # Hyper-parameter configs for the looped model (e.g. looped_random_sup_config.json)
 ```
 
-## 核心机制
+## Key mechanisms
 
-1. **参数共享循环**：同一层 Transformer 权重循环执行 `loop_num` 次。
-2. **动态早停（默认开启，`--dynamic_halting`）**：逐样本累计把握度超过
-   `--halting_threshold`（默认 0.99）即停机；`--ponder_weight`（默认 0.01）为停机步数惩罚，
-   迫使模型学会尽早停机；`--halting_pooling` 指定停机打分方式（默认跟随 `--pooling`）。
-   停机判定复刻 Universal Transformer 官方实现（still_running / new_halted / remainders）。
-3. **深度扫描评估**：`--eval_loop_nums 2,4,6,8,12` 测试阶段用同一套权重逐个循环深度评估，
-   输出精度-深度对照表。
-4. **逐循环监督 + 一致性蒸馏**：预训练由 `looped_model.py` 实现，配合
-   `loop_sup_weight` / `loop_distill_weight` 控制权重（见 configs）。
+1. **Weight-shared looping**: a single Transformer layer is executed `loop_num` times.
+2. **Dynamic halting (enabled by default, `--dynamic_halting`)**: per-sample cumulative confidence
+   halts once it exceeds `--halting_threshold` (default 0.99); `--ponder_weight` (default 0.01)
+   penalizes the number of halting steps so the model learns to stop early;
+   `--halting_pooling` selects the pooling used for halting scores (follows `--pooling` by default).
+   The halting logic follows the official Universal Transformer implementation
+   (still_running / new_halted / remainders).
+3. **Depth sweep evaluation**: `--eval_loop_nums 2,4,6,8,12` evaluates one weight checkpoint at
+   every loop depth at test time and prints an accuracy-vs-depth table.
+4. **Per-loop supervision + consistency distillation**: implemented in `looped_model.py` and
+   `looped_trainer.py`, controlled by `loop_sup_weight` / `loop_distill_weight` (see configs).
 
-> 注：早期实验中的弹性深度（elastic_loop）口径已弃用，相关代码与参数已移除。
+> Note: the early experimental elastic-depth (`elastic_loop`) scheme is deprecated and has been
+> removed from the codebase.
 
-## 环境安装
+## Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-需要 GPU 环境（torch + CUDA）。
+A GPU environment is required (torch + CUDA).
 
-## 使用流程
+## Pipeline
 
-### 1. 数据准备与词表（详见 traffictransformer/运行流程.md）
+### 1. Data preparation and vocabulary (see traffictransformer/运行流程.md)
 
 ```bash
-# pcap -> flow（Windows 下可用 fine-data/SplitCap.exe）
+# pcap -> flow (use fine-data/SplitCap.exe on Windows)
 python3 traffictransformer/fine-data/get_finedata.py
-# 流量特征提取 -> 词表 -> 预训练数据集
+# traffic feature extraction -> vocabulary -> pre-training dataset
 python3 traffictransformer/vocab_gen/extractIpTcp.py
 python3 traffictransformer/vocab_gen/vocab_gen_all.py
 python3 traffictransformer/pre-training/preprocess.py
 ```
 
-### 2. 循环预训练
+### 2. Looped pre-training
 
 ```bash
 python3 loopedtransformer/pretrain_looped.py     --dataset_path traffictransformer/pre-training/dataset/dataset.pt     --vocab_path traffictransformer/vocab_gen/vocab_packet_4chars_all.txt     --config_path loopedtransformer/configs/looped_random_sup_config.json     --target bertpackets     --loop_num 12     --total_steps 120000
 ```
 
-### 3. 分类微调
+### 3. Classification fine-tuning
 
 ```bash
 python3 loopedtransformer/finetune_looped.py     --train_path traffictransformer/fine-data/fine_data_flow/<dataset>_enhance1/0.8/train_500_dataset.tsv     --dev_path   traffictransformer/fine-data/fine_data_flow/<dataset>_enhance1/0.8/valid_500_dataset.tsv     --test_path  traffictransformer/fine-data/fine_data_flow/<dataset>_enhance1/0.8/test_500_dataset.tsv     --loop_num 12     --eval_loop_nums 2,4,6,8,12
 ```
 
-注意：`finetune_looped.py` 末尾的 `__main__` 中硬编码了批量实验的数据集列表
-（`file_list`）、预训练模型列表（`model_list`）与循环深度列表（`loop_num_list`），
-批量跑实验时直接修改该处。
+Note: the `__main__` block at the bottom of `finetune_looped.py` hard-codes the batch-experiment
+lists (`file_list`, `model_list`, `loop_num_list`); edit that block when running batch experiments.
 
-## 常用参数（finetune_looped.py）
+## Common arguments (finetune_looped.py)
 
-| 参数 | 含义 |
+| Argument | Description |
 | --- | --- |
-| `--loop_num` | 循环次数上限（缺省读配置文件，再无则等于 layers_num） |
-| `--dynamic_halting` | 动态早停（默认 True，自动切换 halting_looped_transformer 编码器） |
-| `--halting_threshold` | 累计把握度停机阈值（默认 0.99） |
-| `--ponder_weight` | 停机步数惩罚权重（默认 0.01） |
-| `--halting_pooling` | 停机打分 pooling：mean / max / first / last |
-| `--eval_loop_nums` | 逗号分隔的深度列表，测试时逐个深度评估 |
-| `--only_test` | 仅测试 |
-| `--labels_num` | 标签数（缺省从训练集统计；only_test 必填） |
-| `--earlystop` | early stop 轮数（默认 5） |
+| `--loop_num` | Maximum loop count (falls back to the config file, then to `layers_num`) |
+| `--dynamic_halting` | Dynamic halting (default True; switches to the halting_looped_transformer encoder) |
+| `--halting_threshold` | Cumulative confidence threshold for halting (default 0.99) |
+| `--ponder_weight` | Penalty weight on halting steps (default 0.01) |
+| `--halting_pooling` | Pooling for halting scores: mean / max / first / last |
+| `--eval_loop_nums` | Comma-separated depths, each evaluated at test time |
+| `--only_test` | Test only |
+| `--labels_num` | Number of labels (inferred from the training set if omitted; required with `--only_test`) |
+| `--earlystop` | Early-stop patience in epochs (default 5) |

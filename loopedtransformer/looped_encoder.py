@@ -6,20 +6,6 @@ from uer.encoders.transformer_encoder import TransformerEncoder
 
 
 class LoopedTransformerEncoder(TransformerEncoder):
-    """循环 Transformer 编码器（参数共享基线）。
-
-    与原始 TransformerEncoder 的四点区别：
-    1. 强制参数共享，整个编码器只有一个共享的 Transformer 块。
-    2. 循环次数由 loop_num 控制，与配置中的 layers_num 解耦。
-       layers_num 在本编码器中仅作兼容保留，不参与实际计算。
-    3. 可选返回每次循环的隐藏态，供表征诊断（如 CKA、各向异性）使用。
-    4. 支持随机深度预训练：设置 loop_num_min 后，训练模式下每次前向
-       从 [loop_num_min, loop_num] 均匀采样实际循环次数，使任意深度的
-       输出都被训练到；评估模式始终跑满 loop_num，保证评测可比。
-
-    注意：原始 Model.forward 直接索引 encoder.transformer[i]，
-    与单共享块结构不兼容，因此必须搭配 looped_model.LoopedModel 使用。
-    """
 
     def __init__(self, args):
         assert not args.is_moe, "参数共享基线暂不支持 MoE。"
@@ -31,14 +17,6 @@ class LoopedTransformerEncoder(TransformerEncoder):
 
     def forward(self, emb, seg, input_ids=None, proto=None,
                 output_attentions=False, output_loop_hiddens=False):
-        """
-        Args:
-            emb: [batch_size x seq_length x emb_size]
-            seg: [batch_size x seq_length]
-            output_loop_hiddens: 为 True 时额外返回每次循环后的隐藏态列表。
-        Returns:
-            hidden: [batch_size x seq_length x hidden_size]
-        """
         if self.factorized_embedding_parameterization:
             emb = self.linear(emb)
 

@@ -30,11 +30,6 @@ from uer.targets import *
 #         return loss_mlm, loss_msp, loss_fm,correct_mlm, correct_msp, correct_fm, denominator_mlm, denominator_fm
 
 class BertPacketsTarget(nn.Module):
-    """
-    BERT流量分类目标层:
-    1. MLM(掩码语言模型): 预测被掩码的token
-    2. MSP(混合句子预测): 预测流量序列的类别
-    """
 
     def __init__(self, args, vocab_size):
         # super(BertPacketsTarget, self).__init__(args, vocab_size)
@@ -48,22 +43,6 @@ class BertPacketsTarget(nn.Module):
         self.softmax = nn.LogSoftmax(dim=-1)
         # self.pos_linear = nn.Linear(args.hidden_size, 10)
     def forward(self, memory_bank, tgt):
-        """
-        前向传播计算损失
-
-        参数:
-            memory_bank: 编码器输出 [batch_size x seq_length x hidden_size]
-            tgt: 包含两个目标的元组:
-                - tgt_mlm: MLM目标 [batch_size x seq_length]
-                - tgt_msp: MSP目标 [batch_size]
-
-        返回:
-            loss_mlm: MLM损失
-            loss_msp: MSP损失
-            correct_mlm: MLM正确预测的token数
-            correct_msp: MSP正确预测的样本数
-            denominator: 被掩码的token总数
-        """
 
         # Masked language model (MLM).
         assert type(tgt) == tuple       #tgt_mlm, label, field_modified

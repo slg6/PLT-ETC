@@ -367,11 +367,6 @@ class WordpieceTokenizer(object):
         Returns:
             A list of wordpiece tokens.
         """
-        """贪婪的最长匹配优先算法
-        示例:
-            输入 = "unaffable"
-            输出 = ["un", "##aff", "##able"]
-        """
         text = convert_to_unicode(text)
 
         output_tokens = []

@@ -227,11 +227,6 @@ class Dataset(object):
         self.dup_factor = args.dup_factor
 
     def build_and_save(self, workers_num, split_by_flow=False):
-        """
-        Build dataset from the given corpus.
-        Start workers_num processes and each process deals with a part of data.
-        主要功能是将原始语料处理成训练数据并保存
-        """
         # lines_num = count_lines(self.corpus_path)
         if split_by_flow:
             starts, lines_num = record_flow_start(self.corpus_path)
@@ -852,14 +847,6 @@ class BertPacketsDataset(Dataset):
         # print("build_instances:", len(instances))
         return instances
     def shuffle_packets(self, packets, prob_local_reverse=0.4, prob_swap_k=0.4, prob_interval_swap=0.2):
-        """
-        对包头序列进行多样化局部乱序，生成负样本
-        :param original_packets: 原始包头列表（长度为20）
-        :param prob_local_reverse: 局部逆序的概率
-        :param prob_swap_k: 随机交换k个包的概率
-        :param prob_interval_swap: 间隔置换的概率
-        :return: 打乱后的包头列表
-        """
         n = len(packets)
         if n == 1:
             return packets, 0
@@ -918,11 +905,6 @@ class BertPacketsDataset(Dataset):
         return packets, lable
 
     def create_ins_from_doc(self, all_documents,document_index, flow_proto):
-        '''
-        all_documents: 包含所有文档的列表，每个元素是一个流量（flow）的列表。
-        document_index: 当前处理的文档索引。
-        flow_proto: 存储协议信息的列表
-        '''
         document = deepcopy(all_documents[document_index])
         num_packet = self.num_packet
         if num_packet > len(document):
@@ -1038,16 +1020,6 @@ class BertFlowDataLoader(DataLoader):
             is_next = []
             seg = []
             proto = []
-            '''
-            具体实例：
-            instance = (
-                [101, 7592, 103, 102, 2023, 103, 1034, 102, 0, 0, ...],  # src
-                [(3, 2129), (6, 2003)],                              # 3，6被掩码  掩码前值为2129，2003
-                0,                                                    #  0 表示句子对是连续的。  1 表示句子对是随机拼接的。  修改成数据包位置
-                [4, 8],                                              # Segment A 结束于索引 4，Segment B 结束于索引 8
-                0                                                     # 协议为TCP
-            )
-            '''
             masked_words_num = 0
 
             for ins in instances:
@@ -1095,17 +1067,6 @@ class BertPacketsDataLoader(DataLoader):
             field_mask = []
             seg = []
             proto = []
-            '''
-            具体实例：
-            instance = (
-                [101, 7592, 103, 102, 2023, 103, 1034, 102, 0, 0, ...],  # src
-                [(3, 2129), (6, 2003)],                              # 3，6被掩码  掩码前值为2129，2003
-                0,                                                    #  0 表示句子对是连续的。  1 表示句子对是随机拼接的。  修改成数据包位置
-                [(5, 2120), (21, 9)],                              # 5，21被随机替换  替换前值为2120，9
-                [0,0,0,0,1,1,1,1,10,10,10,10,11,11,11,11...]  # seg
-                0                                                     # 协议为TCP
-            )
-            '''
             masked_words_num = 0
             modified_field_num = 0
             for ins in instances:

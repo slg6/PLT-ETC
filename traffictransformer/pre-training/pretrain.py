@@ -142,12 +142,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-'''
-修改：
---output_model_path
---log_file
-uer/trainer.py 264行的loss函数
-
---instances_buffer_size
---batch_size
-'''

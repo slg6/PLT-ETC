@@ -84,19 +84,7 @@ def main():
 
     # Build and save dataset.
     dataset = str2dataset[args.target](args, tokenizer.vocab, tokenizer)#BertFlowDataset(args, tokenizer.vocab, tokenizer)
-    '''
-    词汇表（vocab.txt 或 encryptd_vocab.txt）是分词器的核心组件，它定义了所有可能的 token 及其对应的 ID
-    BertTokenizer 是基于词汇表来对输入文本进行分词和编码的。
-    对于输入字符串 abcd，分词器会按照以下逻辑进行分割：优先匹配最长的 token
-    '''
     dataset.build_and_save(args.processes_num,split_by_flow=True)
-    '''
-    seq_length 是一个重要的预处理参数，设定了模型输入序列的最大长度，在代码中默认值为128。它的作用主要体现在以下几个方面：
-        1. 序列截断和填充
-        当输入序列长度超过 seq_length，会被截断
-        当输入序列长度小于 seq_length，会用 PAD token 填充
-        确保所有输入序列具有相同的长度，便于批处理
-    '''
 
 
 if __name__ == "__main__":

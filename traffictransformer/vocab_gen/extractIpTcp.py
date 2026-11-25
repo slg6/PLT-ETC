@@ -106,10 +106,6 @@ class DirectionBasedHeaderProcessor:
     # --------------------------
     # --------------------------
     def _determine_direction(self, ip_layer, transport_layer, proto):
-        """
-        以当前流的第一个包为基准，判断后续包的方向（增加协议校验）
-        proto: 传输层协议（"TCP"或"UDP"）
-        """
         if self.base_src_ip is None:
             self.base_src_ip = ip_layer.src
             self.base_dst_ip = ip_layer.dst
@@ -204,10 +200,6 @@ class DirectionBasedHeaderProcessor:
     # --------------------------
     # --------------------------
     def _generate_grouped_string(self, ip_data, transport_data, proto):
-        """
-        生成符合格式的字符串（支持TCP/UDP）
-        proto: 传输层协议（"TCP"或"UDP"）
-        """
         full_hex = ""
         for field in self.ip_fields:
             full_hex += ip_data[field]

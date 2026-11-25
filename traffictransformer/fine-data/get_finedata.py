@@ -58,8 +58,3 @@ if __name__ == "__main__":
     for dataset in dataset_list:
         print(f"----------{dataset}----------")
         main(dataset)
-    '''
-    1. pcapng_path = "../../dataPcap/isd_5s"          # 原始pcapng文件路径
-    2. max_packets = 20    #每个流最多保留的包数量
-    3. min_flow = 5 #每个流最少含包的数量
-    '''

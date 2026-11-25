@@ -282,18 +282,6 @@ class BertTrainer(Trainer):
             print("type of the content of batch:",[type(elem) for elem in batch])
         if len(batch)==5:
             src, tgt_mlm, tgt_sp, seg, proto = batch
-            '''
-            batch具体实例：
-            instance = (
-                [101, 7592, 103, 102, 2023, 103, 1034, 102, 0, 0, ...],  # src 输入序列（Token ID 列表）。
-                [(3, 2129), (6, 2003)],                              #tgt_mlm 3，6被掩码  掩码前值为2129，2003
-                0,                                                    #tgt_sp  0 表示句子对是连续的。  1 表示句子对是随机拼接的。
-                [4, 8],                                              #seg  Segment A 结束于索引 4，Segment B 结束于索引 8
-                0,                                                     #A包
-                0                                                     #proto 协议为TCP
-            )
-
-            '''
             loss_info = model(src, (tgt_mlm, tgt_sp), seg, proto)
             '''
             model
@@ -514,27 +502,6 @@ def worker(proc_id, gpu_ranks, args, model):
         train_loader = str2dataloader[args.target](args, args.dataset_path, args.batch_size, rank, args.world_size, True)
     else:
         train_loader = str2dataloader[args.target](args, args.dataset_path, args.batch_size, 0, 1, True)
-    '''
-    train_loader具体实例：
-    instance = (
-        [101, 7592, 103, 102, 2023, 103, 1034, 102, 0, 0, ...],  # src
-        [(3, 2129), (6, 2003)],                              # 3，6被掩码  掩码前值为2129，2003
-        0,                                                    #  0 表示句子对是连续的。  1 表示句子对是随机拼接的。
-        [4, 8],                                              # Segment A 结束于索引 4，Segment B 结束于索引 8
-        0                                                     # 协议为TCP
-    )
-
-    train_loader修改目标：
-    instance = (
-        [101, 7592, 103, 102, 2023, 103, 1034, 102, 0, 0, ...],  # src  一个数据包的内容
-        [(3, 2129), (6, 2003)],                              # 3，6被掩码  掩码前值为2129，2003  不变
-        0,                                                    #  0 表示句子对是连续的。  1 表示句子对是随机拼接的。0,1,2,3,4
-        [4, 8],                                              #  token_A 结束于索引 4，tokne_B 结束于索引 8
-        0,                                                    #  0 表示A包在数据流中的位置
-        0                                                     # 协议为TCP
-    )
-
-    '''
     if gpu_id is not None:
         torch.cuda.set_device(gpu_id)
         model.cuda(gpu_id)

@@ -66,15 +66,6 @@ class Classifier(nn.Module):
             return None, logits
             #return temp_output, logits
     #slg
-    '''
-    src: 输入序列的token ID
-    seg: 用于区分不同序列片段
-    tgt 的主要特点：
-        形状为 [batch_size]
-        每个元素是一个整数，表示对应样本的类别
-        在训练时用于计算损失函数
-        在评估时用作真实标签(ground truth)
-    '''
     def get_cls_vector(self, src, seg):
         with torch.no_grad():
             emb = self.embedding(src, seg)
@@ -271,7 +262,6 @@ def evaluate(args, dataset, print_confusion_matrix=False):
         recall_score(y_true,y_pred,average='macro'), recall_score(y_true,y_pred,average='micro'), recall_score(y_true,y_pred,average='weighted')))
     print("Macro f1: {:.4f}, Micro f1: {:.4f}, Weighted f1: {:.4f}".format(
         f1_score(y_true,y_pred,average='macro'), f1_score(y_true,y_pred,average='micro'), f1_score(y_true,y_pred,average='weighted')))
-    '''宏平均值：对每个类别分别计算F1值、将所有类别的F1值相加后取平均'''
 
     return f1_score(y_true,y_pred,average='macro'), accuracy_score(y_true,y_pred),precision_score(y_true,y_pred,average='macro'),recall_score(y_true,y_pred,average='macro'),confusion
 

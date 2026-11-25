@@ -161,9 +161,6 @@ def random_tls_randomtime(packets:scapy.PacketList):
     return packets
 
 def extract_flow_features(flow_path, enhance_factor=1, max_packets=20, min_flow=5):
-    """
-    提取单个流的特征，包括所有类型的数据包。默认每个流提取前10个包的信息。
-    """
     try:
         # original_packets = scapy.rdpcap(flow_path)
         original_packets = []
@@ -211,13 +208,6 @@ def extract_flow_features(flow_path, enhance_factor=1, max_packets=20, min_flow=
         return None
 
 def generation_multiP(dataset_path, samples, enhance_factor=1, max_packets=20, min_flow=5, traceMaxFlow=1000):
-    """生成数据集
-
-    Args:
-        dataset_path: 数据集根目录
-        samples: 每个类别最大样本数
-        min_flow: 最小的流
-    """
     output_file = os.path.join(dataset_path, f"{os.path.basename(dataset_path)}_codedata_enhance{enhance_factor}.json") #'../../dataPcap/idi/idi_codedata.json'
     if os.path.exists(output_file):
         with open(output_file, 'r') as f:
@@ -303,21 +293,6 @@ def convert_splitcap(pcapng_path, is_pcap_label=False):
     # pcap_path: the path of pcap files
     # pcap_split_path: the path of splited pcap files
     # pcapng to pcap
-    """
-    将pcapng文件转换为pcap格式，并进行流量分割和清理
-
-    参数:
-        pcapng_path: pcapng文件路径（如果是pcap格式，则与pcap_path相同）
-        is_pcap_label: 是否使用pcap文件名作为标签
-
-    处理流程:
-    1. 格式转换：pcapng -> pcap
-    2. 流量分割：将大的pcap文件分割成小的会话流
-    3. 数据清理：
-       - 移除小于2KB的数据包（可能是不完整的会话）
-       - 重新分割大于10MB的数据包（避免单个文件过大）
-       - 移除样本数少于10个的类别
-    """
     for parent, dirs, files in os.walk(pcapng_path):
         for file in files:
             if file.endswith('.pcapng'):
@@ -399,12 +374,6 @@ def convert_splitcap(pcapng_path, is_pcap_label=False):
     print(f"处理完成! 总样本数: {sum(all_flows)}, 剩余类别数: {len(label_dirs)}")
 
 def dataset_extract(dataset_save_path, features, train_rate=0.8, samples=1000, et=False):
-    """将JSON格式数据集转换为TSV格式
-
-    参数:
-    - dataset_save_path: 数据集保存路径
-    - features: 需要提取的特征列表，如["datagram", "length", "time", "direction", "message_type"]
-    """
     print("read dataset from json file.")
     # with open(dataset_save_path + "/dataset.json","r") as f:
 

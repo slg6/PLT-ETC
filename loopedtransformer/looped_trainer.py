@@ -1,22 +1,8 @@
 # -*- coding: utf-8 -*-
-"""叠加循环附加损失的 bertpackets 训练器。
-
-原始 BertPacketsTrainer 的损失聚合（loss_mlm/10 + loss_sp + loss_fm/10）
-逐字保留，保证与基线的日志口径完全一致。逐循环监督与一致性蒸馏产生
-的附加损失由 LoopedModel 暂存在 model.loop_aux_loss，本训练器读后
-叠加进总损失，并在日志中单列 loop_aux 一项，方便观察两项机制的
-量级变化。附加损失为 None 时（机制关闭或本轮无中间循环）行为与
-父类完全一致。
-
-遵循《AI协作规则》，本文件不修改 uer/trainer.py，通过外部注册
-（str2trainer["bertpackets"] = LoopedBertPacketsTrainer）在
-pretrain_looped.py 中启用。
-"""
 from uer.trainer import BertPacketsTrainer
 
 
 class LoopedBertPacketsTrainer(BertPacketsTrainer):
-    """在 bertpackets 损失上叠加循环附加损失的训练器。"""
 
     def __init__(self, args):
         super().__init__(args)

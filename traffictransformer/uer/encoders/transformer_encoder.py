@@ -19,11 +19,6 @@ class TransformerEncoder(nn.Module):
         self.relative_position_embedding = args.relative_position_embedding
         self.is_moe = args.is_moe
         has_bias = bool(1 - args.remove_transformer_bias)
-        '''
-        LayerNorm 层用于归一化，主要作用是：数值稳定性、位置作用
-        Transformer 层是核心特征提取单元，包含：多头自注意力机制、前馈神经网络
-
-        '''
         if self.factorized_embedding_parameterization:
             self.linear = nn.Linear(args.emb_size, args.hidden_size)
 

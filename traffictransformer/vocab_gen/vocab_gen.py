@@ -3,12 +3,6 @@ import json
 import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 def build_BPE(corpora_path):
-    """构建BPE词汇表函数
-    使用WordPiece算法构建网络流量数据的词汇表，确保词汇固定为4个字符
-
-    参数:
-        corpora_path: 语料库文件路径
-    """
     num_count = 65541
     special_tokens = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
     not_change_string_count = len(special_tokens)
@@ -71,11 +65,6 @@ def build_BPE(corpora_path):
     return 0
 
 def build_vocab(vocab_path):
-    """构建词汇表文件，只包含4个字符的词汇
-
-    参数:
-        vocab_path: 词汇表输出路径
-    """
     with open("wordpiece_4chars.tokenizer.json", 'r') as f:
         vocab_json = json.load(f)
 

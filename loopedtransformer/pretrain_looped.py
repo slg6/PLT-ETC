@@ -1,28 +1,4 @@
 # -*- coding: utf-8 -*-
-"""循环 Transformer 流量预训练入口（参数共享基线）。
-
-用法与 traffictransformer/pre-training/pretrain.py 基本一致，
-差异只有两点：
-1. 默认编码器为 looped_transformer，循环次数由 --loop_num 或配置文件控制。
-2. 模型组装走 loopedtransformer.build.build_looped_model。
-
-示例（在任意目录执行均可）：
-    python3 loopedtransformer/pretrain_looped.py \
-        --dataset_path traffictransformer/pre-training/dataset/dataset.pt \
-        --vocab_path traffictransformer/vocab_gen/vocab_packet_4chars_all.txt \
-        --config_path loopedtransformer/configs/looped_base_config.json \
-        --target bertpackets \
-        --loop_num 12 \
-        --total_steps 120000
-
-    # 随机深度 + 逐循环监督 + 一致性蒸馏（修复版预训练）
-    python3 loopedtransformer/pretrain_looped.py \
-        --dataset_path traffictransformer/pre-training/dataset/dataset.pt \
-        --vocab_path traffictransformer/vocab_gen/vocab_packet_4chars_all.txt \
-        --config_path loopedtransformer/configs/looped_random_sup_config.json \
-        --target bertpackets \
-        --total_steps 120000
-"""
 import os
 import sys
 os.environ["CUDA_VISIBLE_DEVICES"] = "2"
@@ -225,12 +201,6 @@ def main():
         state_dict = {k: v for k, v in model.state_dict().items()
                     if not k.startswith(("target.mlm1.", "target.mlm2."))}
         torch.save(state_dict, model_path)
-    '''
-    trainer.save_model = _save_model_without_mlm 时，
-    你是在修改 trainer 模块的 __dict__，
-    把 save_model 这个名字重新指向了新函数。
-    下次 train() 执行到 save_model(model, ...) 这一行，解析到的就是你替换后的函数。
-    '''
     trainer.save_model = _save_model_without_mlm
     trainer.train_and_validate(args)
 

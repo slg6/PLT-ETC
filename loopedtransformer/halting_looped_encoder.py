@@ -1,30 +1,4 @@
 # -*- coding: utf-8 -*-
-"""借鉴 Universal Transformer 动态停机（ACT）的循环编码器。
-
-在参数共享循环基线（LoopedTransformerEncoder）之上新增一个停机头：
-一个 hidden_size -> 1 的线性层加 sigmoid，每轮循环给每个样本打一个
-"把握度"分数 p。累计把握度超过阈值的样本提前停机，之后各轮不再更新
-其隐藏态；达到 loop_num 仍未停机的样本由上限兜底。
-
-停机判定完全复刻 Universal Transformer 官方实现（截图同款）：
-- still_running：还没停机的样本掩码；
-- new_halted：本轮加完 p 后首次越过阈值的样本；
-- remainders：越过阈值部分（1 - 累计把握度），用于把刚停机样本的
-  把握度恰好补到 1，同时作为本轮状态更新的权重；
-- update_weights：未停机样本按 p 采纳新状态，刚停机样本按 remainders
-  采纳，已停机样本权重为 0、保持原状态。
-
-与基线的两点差异：
-1. 停机是逐样本的：分类任务中简单样本一两轮即停，困难样本多循环，
-   loop_num 只作为 max_steps 兜底。
-2. forward 恒返回 (hidden, act_stats) 二元组，act_stats 内含
-   n_updates（每个样本实际消耗的循环步数），供分类头把
-   ponder penalty（步数均值 x 权重）加进损失，逼模型学会早停。
-   评估模式下若整个 batch 全部停机则提前退出循环，节省推理算力。
-
-注意：停机头参数不参与循环预训练，从预训练权重加载时随机初始化，
-在动态停机微调阶段随分类损失一起端到端学习。
-"""
 import torch
 import torch.nn as nn
 
@@ -32,7 +6,6 @@ from loopedtransformer.looped_encoder import LoopedTransformerEncoder
 
 
 class HaltingLoopedTransformerEncoder(LoopedTransformerEncoder):
-    """带 ACT 动态停机的循环编码器（逐样本早停）。"""
 
     def __init__(self, args):
         super().__init__(args)
@@ -44,7 +17,6 @@ class HaltingLoopedTransformerEncoder(LoopedTransformerEncoder):
         self.halt_check_every = getattr(args, "halt_check_every", 0) or 1  # or 2
 
     def _pool_for_halting(self, hidden):
-        """按 halting_pooling 把 [batch x seq x hidden] 压成 [batch x hidden]。"""
         if self.halting_pooling == "mean":
             return torch.mean(hidden, dim=1)
         if self.halting_pooling == "max":

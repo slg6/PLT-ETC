@@ -1,31 +1,4 @@
 # -*- coding: utf-8 -*-
-"""循环 Transformer 流量分类微调入口。
-
-功能与 traffictransformer/fine-tuning/run_classifier.py 等价，
-不修改原始脚本，差异与新增点如下。
-
-1. 默认编码器为 looped_transformer，经运行时外部注册使用。
-   循环预训练的权重键名与本脚本构建的分类器天然对齐，
-   embedding 与 encoder 部分可直接加载，无需权重广播。
-2. 分类前向对编码器输出做兼容处理。原始脚本写作 encoder(emb, seg)[0]，
-   是因为普通 TransformerEncoder 的返回语句受运算符优先级影响恒为元组。
-   循环编码器正常返回张量，直接索引 [0] 会误取 batch 维，这里统一处理。
-4. 新增循环深度扫描评估。--eval_loop_nums 接受逗号分隔的深度列表，
-   测试阶段逐个深度评估并打印精度-深度对照表，
-   用于展示一套权重覆盖多档算力预算的特性。
-
-用法示例（在仓库根目录执行）：
-    python3 loopedtransformer/finetune_looped.py \
-        --pretrained_model_path traffictransformer/pre-training/pre-training-model/looped_model.bin-120000 \
-        --train_path traffictransformer/fine-data/train.tsv \
-        --dev_path traffictransformer/fine-data/dev.tsv \
-        --test_path traffictransformer/fine-data/test.tsv \
-        --config_path loopedtransformer/configs/looped_base_config.json \
-        --loop_num 12 --epochs_num 10
-
-
-本脚本不修改 traffictransformer 下的任何文件。
-"""
 
 
 import os
@@ -61,11 +34,6 @@ from loopedtransformer.build import register_looped_components
 
 
 class LoopedClassifier(nn.Module):
-    """流量分类器。结构与 run_classifier.py 中的 Classifier 一致。
-
-    嵌入层、编码器加两层线性的分类头。唯一差异在编码器输出的
-    取值方式，对张量与元组两类返回均兼容。
-    """
 
     def __init__(self, args):
         super(LoopedClassifier, self).__init__()
@@ -122,7 +90,6 @@ def count_labels_num(path):
 
 
 def read_dataset(args, path):
-    """读取 tsv 数据集，逻辑与原始微调脚本一致。"""
     dataset, columns = [], {}
     with open(path, mode="r", encoding="utf-8") as f:
         for line_id, line in enumerate(f):
@@ -203,7 +170,6 @@ def build_optimizer(args, model):
 
 
 def evaluate(args, model, dataset, print_confusion_matrix=False):
-    """评估并返回指标字典。供验证、测试与深度扫描共用。"""
     src = torch.LongTensor([sample[0] for sample in dataset])
     tgt = torch.LongTensor([sample[1] for sample in dataset])
     seg = torch.LongTensor([sample[2] for sample in dataset])
@@ -253,11 +219,6 @@ def evaluate(args, model, dataset, print_confusion_matrix=False):
 
 
 def load_pretrained_parameters(args, model):
-    """加载循环预训练权重。embedding 与 encoder 键名天然对齐。
-
-    strict=False 下，预训练独有的 target 头被跳过，
-    微调新增的分类头保持随机初始化。
-    """
     if args.pretrained_model_path and os.path.exists(args.pretrained_model_path):
         print("Initialize with pretrained model. %s" % args.pretrained_model_path)
         state = torch.load(args.pretrained_model_path, map_location="cpu")
@@ -273,11 +234,6 @@ def load_pretrained_parameters(args, model):
 
 
 def eval_loop_sweep(args, model, testset):
-    """循环深度扫描评估：同一套权重，逐个深度在测试集上评估。
-
-    输出精度-深度对照表，用于展示弹性深度特性。
-    仅对循环编码器有意义，普通编码器没有 loop_num 属性时跳过。
-    """
     if not hasattr(model.encoder, "loop_num"):
         print("当前编码器不支持调节循环深度，跳过深度扫描。")
         return

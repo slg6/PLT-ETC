@@ -4,11 +4,6 @@ from uer.targets import *
 
 
 class BertFlowTarget(MlmTarget):
-    """
-    BERT流量分类目标层:
-    1. MLM(掩码语言模型): 预测被掩码的token
-    2. MSP(混合句子预测): 预测流量序列的类别
-    """
 
     def __init__(self, args, vocab_size):
         super(BertFlowTarget, self).__init__(args, vocab_size)
@@ -16,22 +11,6 @@ class BertFlowTarget(MlmTarget):
         self.msp_linear_1 = nn.Linear(args.hidden_size, args.hidden_size)
         self.msp_linear_2 = nn.Linear(args.hidden_size, 5)
     def forward(self, memory_bank, tgt):
-        """
-        前向传播计算损失
-
-        参数:
-            memory_bank: 编码器输出 [batch_size x seq_length x hidden_size]
-            tgt: 包含两个目标的元组:
-                - tgt_mlm: MLM目标 [batch_size x seq_length]
-                - tgt_msp: MSP目标 [batch_size]
-
-        返回:
-            loss_mlm: MLM损失
-            loss_msp: MSP损失
-            correct_mlm: MLM正确预测的token数
-            correct_msp: MSP正确预测的样本数
-            denominator: 被掩码的token总数
-        """
 
         # Masked language model (MLM).
         assert type(tgt) == tuple

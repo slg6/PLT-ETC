@@ -77,19 +77,6 @@ class FieldNegativeGenerator:
         }
 
     def generate_negative_sample(self, modified, protocol_type,  modify_count, field_mask_list, packet_idex):
-        """
-        生成负样本并标记修改位置
-        :param original_fields: 原始字段列表（ip字段+tcp/udp字段）
-        :param protocol_type: 协议类型（"tcp"/"udp"）
-        :param flow_context: 流上下文（含历史端口信息），格式：
-            {
-                "flow_id": "xxx",
-                "history_sports": ["dd02", ...],  # 该流历史源端口
-                "history_dports": ["01bb", ...]   # 该流历史目的端口
-            }
-        :param modify_count: 修改字段数量
-        :return: (修改后字段列表, 修改标记列表)
-        """
         protocol_type = protocol_type.lower()
         if protocol_type.lower() not in ["tcp", "udp"]:
             raise ValueError("协议类型必须为'tcp'或'udp'")
@@ -124,11 +111,6 @@ class FieldNegativeGenerator:
 
 
     def _get_invalid_value(self, current_val, field_name, constraints):
-        """根据字段约束生成无效值
-            current_val: 当前字段值（十六进制字符串）
-            field_name: 字段名称（如"sport"）
-            constraints: 该字段的约束字典
-        """
         current_val = current_val - 5
         hex_to_int = lambda h: int(h, 16)
         int_add_five = lambda i: i + 5
