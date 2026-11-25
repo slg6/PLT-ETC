@@ -233,23 +233,6 @@ def load_pretrained_parameters(args, model):
                 p.data.normal_(0, 0.02)
 
 
-def eval_loop_sweep(args, model, testset):
-    if not hasattr(model.encoder, "loop_num"):
-        print("当前编码器不支持调节循环深度，跳过深度扫描。")
-        return
-    depths = [int(x) for x in args.eval_loop_nums.split(",") if x.strip()]
-    if not depths:
-        return
-    original = model.encoder.loop_num
-    print("\n循环深度扫描评估（同一套权重，仅改变循环次数）：")
-    print("%10s %10s %10s" % ("loop_num", "acc", "macro_f1"))
-    for n in depths:
-        model.encoder.loop_num = n
-        m = evaluate(args, model, testset)
-        print("%10d %10.4f %10.4f" % (n, m["acc"], m["macro_f1"]))
-    model.encoder.loop_num = original
-
-
 def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num = 12):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     finetune_opts(parser)
@@ -277,9 +260,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
     parser.add_argument("--only_test", action="store_true", help="Only run test.")
     parser.add_argument("--loop_num", type=int, default=None,
                         help="循环次数。缺省时读取配置文件，配置文件也没有时等于 layers_num。")
-    parser.add_argument("--eval_loop_nums", type=str, default="",
-                        help='逗号分隔的深度列表，如 "2,4,6,8,12"。'
-                             "测试阶段逐个深度评估，输出精度-深度对照表。")
     parser.add_argument("--dynamic_halting", type=bool, default=True,
                         help="动态早停：逐样本累计把握度达标即停机，"
                              "自动切换 halting_looped_transformer 编码器。")
@@ -350,7 +330,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
         assert args.test_path is not None, "only_test 模式需要提供 --test_path。"
         testset = read_dataset(args, args.test_path)
         evaluate(args, model, testset, print_confusion_matrix=True)
-        eval_loop_sweep(args, model, testset)
         return
 
     trainset = read_dataset(args, args.train_path)
@@ -433,7 +412,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
                     "avg halting: {}, best_epoch: {:4d}\n".format(
                         result["macro_f1"], result["acc"], result["macro_p"],
                         result["macro_r"], halt, best_result_round))
-        eval_loop_sweep(args, model, testset)
 
 
 if __name__ == "__main__":

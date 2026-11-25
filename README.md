@@ -38,9 +38,7 @@ loopedtransformer/         # Looped-Transformer additions (core contribution of 
    `--halting_pooling` selects the pooling used for halting scores (follows `--pooling` by default).
    The halting logic follows the official Universal Transformer implementation
    (still_running / new_halted / remainders).
-3. **Depth sweep evaluation**: `--eval_loop_nums 2,4,6,8,12` evaluates one weight checkpoint at
-   every loop depth at test time and prints an accuracy-vs-depth table.
-4. **Per-loop supervision + consistency distillation**: implemented in `looped_model.py` and
+3. **Per-loop supervision + consistency distillation**: implemented in `looped_model.py` and
    `looped_trainer.py`, controlled by `loop_sup_weight` / `loop_distill_weight` (see configs).
 
 > Note: the early experimental elastic-depth (`elastic_loop`) scheme is deprecated and has been
@@ -70,13 +68,23 @@ python3 traffictransformer/pre-training/preprocess.py
 ### 2. Looped pre-training
 
 ```bash
-python3 loopedtransformer/pretrain_looped.py     --dataset_path traffictransformer/pre-training/dataset/dataset.pt     --vocab_path traffictransformer/vocab_gen/vocab_packet_4chars_all.txt     --config_path loopedtransformer/configs/looped_random_sup_config.json     --target bertpackets     --loop_num 12     --total_steps 120000
+python3 loopedtransformer/pretrain_looped.py \
+    --dataset_path traffictransformer/pre-training/dataset/dataset.pt \
+    --vocab_path traffictransformer/vocab_gen/vocab_packet_4chars_all.txt \
+    --config_path loopedtransformer/configs/looped_random_sup_config.json \
+    --target bertpackets \
+    --loop_num 12 \
+    --total_steps 120000
 ```
 
 ### 3. Classification fine-tuning
 
 ```bash
-python3 loopedtransformer/finetune_looped.py     --train_path traffictransformer/fine-data/fine_data_flow/<dataset>_enhance1/0.8/train_500_dataset.tsv     --dev_path   traffictransformer/fine-data/fine_data_flow/<dataset>_enhance1/0.8/valid_500_dataset.tsv     --test_path  traffictransformer/fine-data/fine_data_flow/<dataset>_enhance1/0.8/test_500_dataset.tsv     --loop_num 12     --eval_loop_nums 2,4,6,8,12
+python3 loopedtransformer/finetune_looped.py \
+    --train_path traffictransformer/fine-data/fine_data_flow/<dataset>_enhance1/0.8/train_500_dataset.tsv \
+    --dev_path   traffictransformer/fine-data/fine_data_flow/<dataset>_enhance1/0.8/valid_500_dataset.tsv \
+    --test_path  traffictransformer/fine-data/fine_data_flow/<dataset>_enhance1/0.8/test_500_dataset.tsv \
+    --loop_num 12
 ```
 
 Note: the `__main__` block at the bottom of `finetune_looped.py` hard-codes the batch-experiment
@@ -91,7 +99,6 @@ lists (`file_list`, `model_list`, `loop_num_list`); edit that block when running
 | `--halting_threshold` | Cumulative confidence threshold for halting (default 0.99) |
 | `--ponder_weight` | Penalty weight on halting steps (default 0.01) |
 | `--halting_pooling` | Pooling for halting scores: mean / max / first / last |
-| `--eval_loop_nums` | Comma-separated depths, each evaluated at test time |
 | `--only_test` | Test only |
 | `--labels_num` | Number of labels (inferred from the training set if omitted; required with `--only_test`) |
 | `--earlystop` | Early-stop patience in epochs (default 5) |
