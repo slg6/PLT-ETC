@@ -1,36 +1,31 @@
 import os
 import subprocess
-# 设置工作目录
 # os.chdir(os.path.expanduser("~/llmfortraffic/looptransformer/traffictransformer"))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# 设置环境变量
 os.environ["CUDA_VISIBLE_DEVICES"] = "2"
-# 定义多个 dataset_name
 dataset_names = os.listdir(f"fine-data/fine_data_flow/")
 
 # dataset_names = ['cic-iot_300s', 'cic','andro_300s', 'idi', 'isd_30_1s', 'service', 'uav_5s', 'ustcMal', 'ustc', 'app', 'tor']     #running crossterm mutilhead
 # dataset_names = ["cipherspectrum_aes128", "cipherspectrum_aes256", "cipherspectrum_cha", "cipherspectrum_mix", "cstent"]     #running crossterm mutilhead
 # dataset_names = ['idi','service', 'uav_5s', 'ustcMal', 'app', 'tor', 'cic-iot_300s', 'andro_300s', 'ustc']     #running crossterm mutilhead
 
-#idi service 
+#idi service
 
 dataset_names = ["cipherspectrum_aes256", "cipherspectrum_cha", "cipherspectrum_mix", "cstent", 'tor', 'uav_5s', 'ustc',
                  'cic-iot_300s', 'cic','andro_300s', 'idi', 'isd_30_1s', 'service', 'ustcMal',  'app']     #running crossterm mutilhead
 
 dataset_names = ['itcnet']
-# tor app ustcMal uav_5s service idi cic-iot_300s andro_300s ustc 存在样本不平衡现象
 enhances = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
 # pretrain_steps = ['0', '1000', '2000', '3000', '4000', '5000', '6000', '7000', '8000', '9000', '10000', '11000']
 pretrain_steps = ['12000']
 
 sample = 500
-# 定义其他参数
 tsv_path_template = "fine-data/fine_data_flow/{}/{}/"
 enhance_factor = 1
-func = "nofeature"   
+func = "nofeature"
 train_rate = 0.8
-                        
+
 command_template = [
     "python3", f"fine-tuning/run_classifier_{func}.py",
     "--vocab_path", "vocab_gen/vocab_packet_4chars_all.txt",
@@ -52,16 +47,13 @@ command_template = [
     "--config_path", "models/bert/base_config_packets.json",
 ]
 
-# 对每个 dataset_name 逐一执行命令
 # for dataset_name in dataset_names:
 for i in range(len(dataset_names)):
-    # 构建具体的路径
     dataset_name = dataset_names[i]
     enhance = enhances[i]
 
     tsv_path = tsv_path_template.format(dataset_name + f"_enhance{enhance}", train_rate)
-    
-    # 构建完整的命令
+
     command = command_template.copy()
     command[5] = f"{tsv_path}train_500_dataset.tsv"
     command[7] = f"{tsv_path}valid_500_dataset.tsv"

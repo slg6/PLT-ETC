@@ -39,7 +39,6 @@ import os
 import sys
 os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# 路径自定位，不依赖固定的用户目录。
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(_THIS_DIR)
 _TRAFFIC_DIR = os.path.join(_REPO_ROOT, "traffictransformer")
@@ -83,7 +82,6 @@ class LoopedClassifier(nn.Module):
         self.pooling = args.pooling
         self.output_layer_1 = nn.Linear(args.hidden_size, args.hidden_size)
         self.output_layer_2 = nn.Linear(args.hidden_size, self.labels_num)
-        # ACT 动态停机的步数惩罚权重，0 表示不惩罚（等价纯 mask 停机）。
         self.ponder_weight = getattr(args, "ponder_weight", 0.0)
         self.act_stats = None
 
@@ -91,9 +89,6 @@ class LoopedClassifier(nn.Module):
         emb = self.embedding(src, seg)
         output = self.encoder(emb, seg)
         self.act_stats = None
-        # 普通 TransformerEncoder 恒返回元组（隐藏态, 注意力列表），
-        # 动态停机编码器返回 (隐藏态, act_stats 字典)。
-        # 统一取隐藏态，并顺带捕获停机统计。
         if isinstance(output, (tuple, list)):
             if len(output) >= 2 and isinstance(output[1], dict):
                 self.act_stats = output[1]
@@ -114,7 +109,6 @@ class LoopedClassifier(nn.Module):
         logits = self.output_layer_2(output)
         if tgt is not None:
             loss = nn.NLLLoss()(nn.LogSoftmax(dim=-1)(logits), tgt.view(-1))
-            # ACT 的 ponder penalty：惩罚平均停机步数，逼模型早停。
             if self.act_stats is not None and self.ponder_weight > 0.0:
                 loss = loss + self.ponder_weight * self.act_stats["n_updates"].mean()
             return loss, logits
@@ -147,7 +141,6 @@ def read_dataset(args, path):
             tgt = int(line[columns["label"]])
             text = line[columns["text_a"]].split()
             src = args.tokenizer.convert_tokens_to_ids(text)
-            # 段标记按 IP 字段 11 个 token、TCP 字段 9 个 token 交替构造。
             if len(src) < 1 or (len(src) - 1) % 11 != 0:
                 raise ValueError(
                     "第 %d 行：text_a 含 %d 个 token，不符合 "
@@ -168,8 +161,6 @@ def read_dataset(args, path):
                 # guard += 1
                 # if guard > 10000:
                 #     raise ValueError(
-                #         "段标记长度始终无法对齐 token 序列，"
-                #         "请检查该行的 text_a 是否符合每包 20 token 的格式。")
             if len(src) > args.seq_length:
                 src = src[: args.seq_length]
                 seg = seg[: args.seq_length]
@@ -235,7 +226,6 @@ def evaluate(args, model, dataset, print_confusion_matrix=False):
         seg_batch = seg_batch.to(args.device)
         with torch.no_grad():
             _, logits = model(src_batch, tgt_batch, seg_batch)
-        # 动态停机模式下统计平均停机步数，观察简单样本是否学会早停。
         stats = getattr(model, "act_stats", None)
         if stats is not None:
             ponder_sum += stats["n_updates"].sum().item()
@@ -314,7 +304,6 @@ def eval_loop_sweep(args, model, testset):
 def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num = 12):
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     finetune_opts(parser)
-    # 在原有 encoder 候选之外追加循环编码器，不修改 opts.py。
     for action in parser._actions:
         if action.dest == "encoder":
             action.choices = list(action.choices) + ["looped_transformer",
@@ -337,19 +326,17 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
                         help="标签数。缺省时从训练集统计，only_test 模式下必填。")
     parser.add_argument("--earlystop", type=int, default=5, help="early stop rounds.")
     parser.add_argument("--only_test", action="store_true", help="Only run test.")
-    # 循环结构相关参数。
     parser.add_argument("--loop_num", type=int, default=None,
                         help="循环次数。缺省时读取配置文件，配置文件也没有时等于 layers_num。")
     parser.add_argument("--elastic_loop", action="store_true",
                         help="弹性深度微调。每个训练步随机采样循环次数。")
-    parser.add_argument("--loop_num_min", type=int, default=2,          #只在 elastic_loop 下生效
+    parser.add_argument("--loop_num_min", type=int, default=2,
                         help="弹性深度采样下界。")
     parser.add_argument("--loop_num_max", type=int, default=None,
                         help="弹性深度采样上界，缺省等于 loop_num。")
     parser.add_argument("--eval_loop_nums", type=str, default="",
                         help='逗号分隔的深度列表，如 "2,4,6,8,12"。'
                              "测试阶段逐个深度评估，输出精度-深度对照表。")
-    # ACT 动态停机（借鉴 Universal Transformer）。
     parser.add_argument("--dynamic_halting", type=bool, default=True,
                         help="动态早停：逐样本累计把握度达标即停机，"
                              "自动切换 halting_looped_transformer 编码器。")
@@ -359,7 +346,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
                         help="停机步数惩罚权重，越大模型越早停。")
     parser.add_argument("--halting_pooling", choices=["mean", "max", "first", "last"],
                         default=None, help="停机打分用的 pooling，缺省跟随 --pooling。")
-    # MOE 参数仅为与 uer 组件兼容保留，循环基线不支持。
     parser.add_argument("--is_moe", action="store_true", help="adopt moe layer.")
     parser.add_argument("--moebert_expert_dim", type=int, default=3072)
     parser.add_argument("--moebert_expert_num", type=int, default=None)
@@ -381,7 +367,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
 
     if args.config_path:
         args = load_hyperparam(args)
-    # 命令行显式指定的 loop_num 优先于配置文件。
     cli_loop_num = None
     for i, a in enumerate(sys.argv):
         if a == "--loop_num" and i + 1 < len(sys.argv):
@@ -395,7 +380,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
         args.output_model_path = f"loopedtransformer/finetune-output-sup/{dataset}/loop_num_max{str(args.loop_num)}.bin"
     if pretrained_model=='looped_model_sup.bin-120000' and args.loop_num == 12:
         args.output_model_path = f"loopedtransformer/finetune-output-sup/{dataset}/best_model.bin"
-    # 动态停机与弹性深度互斥：前者逐样本决定深度，后者逐 step 统一采样深度。
     assert not (args.dynamic_halting and args.elastic_loop), \
         "--dynamic_halting 与 --elastic_loop 不能同时开启。"
     if args.dynamic_halting:
@@ -411,7 +395,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
     args.tokenizer = str2tokenizer[args.tokenizer](args)
 
     model = LoopedClassifier(args)
-    # 同步循环次数到编码器实例。
     if hasattr(model.encoder, "loop_num"):
         model.encoder.loop_num = args.loop_num
     if args.elastic_loop:
@@ -426,7 +409,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
     print("Finetune: encoder=%s, loop_num=%d, elastic=%s"
           % (args.encoder, getattr(model.encoder, "loop_num", -1), args.elastic_loop))
 
-    # 仅测试模式。
     if args.only_test:
         assert args.test_path is not None, "only_test 模式需要提供 --test_path。"
         testset = read_dataset(args, args.test_path)
@@ -434,7 +416,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
         eval_loop_sweep(args, model, testset)
         return
 
-    # 训练阶段。
     trainset = read_dataset(args, args.train_path)
     random.shuffle(trainset)
     instances_num = len(trainset)
@@ -467,7 +448,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
         model.train()
         for i, (src_batch, tgt_batch, seg_batch) in enumerate(
                 batch_loader(args.batch_size, src, tgt, seg)):
-            # 弹性深度：每个训练步重新采样循环次数。
             if args.elastic_loop:
                 model.encoder.loop_num = random.randint(args.loop_num_min, args.loop_num_max)
             model.zero_grad()
@@ -485,7 +465,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
                 total_loss = 0.0
 
         lr = optimizer.param_groups[0]["lr"]
-        # 验证时回到基准循环次数，保证各轮可比。
         if hasattr(model.encoder, "loop_num"):
             model.encoder.loop_num = args.loop_num
         result = evaluate(args, model, read_dataset(args, args.dev_path))
@@ -505,7 +484,6 @@ def main(dataset='ustc',pretrained_model='looped_model_sup.bin-120000', loop_num
             print("early stopping...")
             break
 
-    # 测试阶段。
     if args.test_path is not None:
         print("Test set evaluation.")
         model.load_state_dict(torch.load(args.output_model_path, map_location=args.device))

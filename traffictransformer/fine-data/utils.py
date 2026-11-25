@@ -21,7 +21,7 @@ def random_field(bits):
     return field_int
 
 def convert_pcapng_2_pcap(pcapng_path, pcapng_file, output_path):
-    
+
     pcap_file = output_path + pcapng_file.replace('pcapng','pcap')
     cmd = "editcap -F pcap %s %s"
     command = cmd%(pcapng_path+pcapng_file, pcap_file)
@@ -38,7 +38,7 @@ def split_cap(pcap_file_path, output_dir, pcap_label='', split_way = 'bidirectio
     os.system(cmd)
     return output_dir
 
-def cut(obj, sec):      #函数是一个切片函数，用于将输入字符串按指定长度进行分割
+def cut(obj, sec):
     result = [obj[i:i+sec] for i in range(0,len(obj),sec)]      #len(obj)=122 sec=len(obj)/2=61
     try:
         remanent_count = len(result[0])%4       #remanent_count=1
@@ -51,9 +51,9 @@ def cut(obj, sec):      #函数是一个切片函数，用于将输入字符串�
         result = [obj[i:i+sec+remanent_count] for i in range(0,len(obj),sec+remanent_count)]
     return result
 
-def bigram_generation(packet_datagram, token_len = 64, flag=True): #token_len实际上是限制生成的bigram对（双字节组合）的数量
+def bigram_generation(packet_datagram, token_len = 64, flag=True):
     result = ''
-    generated_datagram = cut(packet_datagram,1)  #最后得到的结果就是两两一对
+    generated_datagram = cut(packet_datagram,1)
     token_count = 0
     for sub_string_index in range(len(generated_datagram)):
         if sub_string_index != (len(generated_datagram) - 1):
@@ -66,7 +66,7 @@ def bigram_generation(packet_datagram, token_len = 64, flag=True): #token_len实
             break
         result += merge_word_bigram
         result += ' '
-    
+
     return result   #'||ab abcd cdef efg '
 
 def gram_generation(packet_datagram):
@@ -76,7 +76,7 @@ def gram_generation(packet_datagram):
         merge_word_bigram = generated_datagram[sub_string_index]
         result += merge_word_bigram
         result += ' '
-    
+
     return result
 
 def size_format(size):
@@ -99,7 +99,7 @@ def read_data_from_json(json_data, features):
     return X,Y
 
 def obtain_data(features, dataset_save_path, json_data = None):
-    
+
     if json_data:
         X,Y = read_data_from_json(json_data,features)
     else:
@@ -118,13 +118,11 @@ def obtain_data(features, dataset_save_path, json_data = None):
 def write_dataset_tsv(data,label,file_dir,type):
     if "train" in type:
         augmenter = PacketSeqAugmenter()
-        # 先验证第一个样本的格式（避免批量报错）
         try:
             _ = augmenter.parse_seq_format(data[0])
             print("✅ 第一个样本格式验证通过")
         except Exception as e:
             raise ValueError(f"❌ 样本格式错误：{str(e)}") from e
-        # 平衡并增强
         balanced_data, balanced_labels = augmenter.balance_seq_dataset(data, label)
         print(f"原始样本数: {len(data)}，增强后样本数: {len(balanced_data)}")
     else:

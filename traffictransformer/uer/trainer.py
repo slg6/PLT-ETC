@@ -15,19 +15,15 @@ import torch.nn.functional as F
 
 def load_or_initialize_parameters(args, model):
     try:
-        # 尝试加载预训练模型的权重
         pretrained_weights = torch.load(args.pretrained_model_path)
-        model_dict = model.state_dict() #你可以直接修改 state_dict 中的张量，然后使用 load_state_dict() 将修改后的权重加载到模型中。
-        # 过滤掉不匹配的权重
+        model_dict = model.state_dict()
         filtered_weights = {k: v for k, v in pretrained_weights.items() if k in model_dict and v.shape == model_dict[k].shape}
-        # 更新模型的权重
         model_dict.update(filtered_weights)
         model.load_state_dict(model_dict)
         print("Successfully loaded pre-trained model weights.")
     except Exception as e:
         print(f"Failed to load pre-trained model weights: {e}")
         print("Initializing model parameters randomly.")
-        # 如果加载失败，可以随机初始化模型参数
         model.apply(model._init_weights)
 def train_and_validate(args):
     set_seed(args.seed)
@@ -47,13 +43,12 @@ def train_and_validate(args):
     #slg
     # Build model.
     print("Build model.")
-    model = build_model(args)   #创建模型结构
+    model = build_model(args)
     # for name,parameters in model.named_parameters():
     #     print(name,':',parameters.size())
     # Load or initialize parameters.
     # if args.pretrained_model_path is not None:
     #     # Initialize with pretrained model.
-    #     # model = load_model(model, args.pretrained_model_path) #加载预训练模型
     #     load_or_initialize_parameters(args, model)
     # else:
     # Initialize with normal distribution.
@@ -79,7 +74,7 @@ class Trainer(object):
     def __init__(self, args):
         self.current_step = 1
         self.total_steps = args.total_steps
-        self.accumulation_steps = args.accumulation_steps       #accumulation_steps 参数用于实现梯度累积，通过在多个小批次上累积梯度，模拟大批次训练的效果。这种方法可以在不增加硬件负担的情况下提高模型的训练效果，尤其适用于内存受限的场景。
+        self.accumulation_steps = args.accumulation_steps
         self.report_steps = args.report_steps
         self.save_checkpoint_steps = args.save_checkpoint_steps
 
@@ -87,7 +82,7 @@ class Trainer(object):
 
         self.start_time = time.time()
         self.total_loss = 0.0
-        
+
         self.dist_train = args.dist_train
         self.batch_size = args.batch_size
         self.world_size = args.world_size
@@ -104,11 +99,11 @@ class Trainer(object):
         model.train()
 
         loader_iter = iter(loader)
-        
+
         while True:
-            if self.current_step == self.total_steps + 1:       #每一步仅训练一个batch_size，不是所有的数据
+            if self.current_step == self.total_steps + 1:
                 break
-            batch = list(next(loader_iter))     #先加载22560个实例，一次从中取出一个batch的实例，取完以后，再补充。 一个batch实例含有batch_size个样本
+            batch = list(next(loader_iter))
             self.seq_length = batch[0].size(1)
             if gpu_id is not None:
                 for i in range(len(batch)):
@@ -129,13 +124,13 @@ class Trainer(object):
             # print(f"self.current_step % self.report_steps, {self.current_step} % {self.report_steps}")
             if self.current_step % self.report_steps == 0 and \
                     (not self.dist_train or (self.dist_train and rank == 0)):
-                
+
                 self.report_and_reset_stats()
                 self.start_time = time.time()
 
             if self.current_step % self.save_checkpoint_steps == 0 and \
                     (not self.dist_train or (self.dist_train and rank == 0)):
-                save_model(model, self.output_model_path + "-" + str(self.current_step))    #保存中间模型
+                save_model(model, self.output_model_path + "-" + str(self.current_step))
 
             self.current_step += 1
 
@@ -173,7 +168,7 @@ class MlmTrainer(Trainer):
         self.total_loss = 0.0
         self.total_correct = 0.0
         self.total_denominator = 0.0
-        
+
 class BertPacketsTrainer(Trainer):
     def __init__(self, args):
         super(BertPacketsTrainer, self).__init__(args)
@@ -190,10 +185,8 @@ class BertPacketsTrainer(Trainer):
         # self.total_correct_fm += correct_fm.item()
         # self.total_denominator += denominator_mlm.item()
         # self.total_denominator_fm += denominator_fm.item()
-        # self.total_instances += src.size(0)     #总实例，与batch_size一样
 
 
-        # self.register_buffer('global_hit_count', torch.zeros(K))  # K=256，和 model.py 里保持一致
 
 
         self.total_loss_mlm = 0.0
@@ -213,9 +206,9 @@ class BertPacketsTrainer(Trainer):
 
         loss_mlm, loss_sp, loss_fm,correct_mlm, correct_sp, correct_fm, denominator_mlm, denominator_fm = loss_info
         # gate_loss = 0.0
-        loss = loss_mlm/10 + loss_sp + loss_fm/10 #+ self.load_balance_alpha * gate_loss  #MLM损失   序列损失  包位置损失  MOE下的平衡 （此处的权重是不是能修改一下）
-        
-        
+        loss = loss_mlm/10 + loss_sp + loss_fm/10
+
+
 
         # loss = loss_mlm  #onlymfm
         self.total_loss += loss.item()
@@ -227,7 +220,7 @@ class BertPacketsTrainer(Trainer):
         self.total_correct_fm += correct_fm.item()
         self.total_denominator += denominator_mlm.item()
         self.total_denominator_fm += denominator_fm.item()
-        self.total_instances += src.size(0)     #总实例，与batch_size一样
+        self.total_instances += src.size(0)
         loss = loss / self.accumulation_steps       #1
 
         return loss
@@ -236,8 +229,8 @@ class BertPacketsTrainer(Trainer):
         import time
         logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s',
                             handlers=[
-                                logging.FileHandler(self.log_file), #表示log写入文件
-                                logging.StreamHandler()     #表示log打印终端
+                                logging.FileHandler(self.log_file),
+                                logging.StreamHandler()
                             ])
         logger = logging.getLogger(__name__)
         done_tokens = self.batch_size * self.seq_length * self.report_steps
@@ -245,7 +238,7 @@ class BertPacketsTrainer(Trainer):
             done_tokens *= self.world_size
 
 
-        
+
         log_message = (
         f"| {self.current_step:8d}/{self.total_steps:8d} steps"
         f"| {time.time() - self.start_time:3.3f} s"
@@ -301,26 +294,24 @@ class BertTrainer(Trainer):
             )
 
             '''
-            loss_info = model(src, (tgt_mlm, tgt_sp), seg, proto)  #loss_info是model的forward函数计算出来的  
-            #传给target层的是（含有CLS的张量，tgt）   tgt= (tgt_mlm, tgt_sp)   tgt_mlm是用于字词预测的不用修改
-            #修改tgt_sp，代表包的位置即可。    只需要修改数据的传入方式即可
+            loss_info = model(src, (tgt_mlm, tgt_sp), seg, proto)
             '''
             model
             Pretraining models consist of three parts:
                 - embedding
                 - encoder
                 - target
-            ''' 
+            '''
         else:
             src, tgt_mlm, tgt_sp, seg = batch
             loss_info = model(src, (tgt_mlm, tgt_sp), seg)
-        
+
         if self.is_moe:
             loss_mlm, loss_sp, correct_mlm, correct_sp, denominator, gate_loss = loss_info
         else:
             loss_mlm, loss_sp, correct_mlm, correct_sp, denominator = loss_info
             gate_loss = 0.0
-        loss = loss_mlm/10 + loss_sp + self.load_balance_alpha * gate_loss  #MLM损失   序列损失   MOE下的平衡
+        loss = loss_mlm/10 + loss_sp + self.load_balance_alpha * gate_loss
         self.total_loss += loss.item()
         self.total_loss_mlm += loss_mlm.item()
         self.total_loss_sp += loss_sp.item()
@@ -401,8 +392,8 @@ class BilmTrainer(Trainer):
                   "| acc_forward: {:3.3f}"
                   "| acc_backward: {:3.3f}".format(
                     self.current_step,
-                    self.total_steps, 
-                    done_tokens / (time.time() - self.start_time), 
+                    self.total_steps,
+                    done_tokens / (time.time() - self.start_time),
                     self.total_loss / self.report_steps,
                     self.total_loss_forward / self.report_steps,
                     self.total_loss_backward / self.report_steps,
@@ -498,7 +489,7 @@ str2trainer = {"bert": BertTrainer, "bertflow": BertTrainer,"bertpackets":BertPa
                "albert": AlbertTrainer, "bilm": BilmTrainer, "cls": ClsTrainer,
                "seq2seq": Seq2seqTrainer, "t5": T5Trainer}
 
-def worker(proc_id, gpu_ranks, args, model):    
+def worker(proc_id, gpu_ranks, args, model):
     """
     Args:
         proc_id: The id of GPU for single GPU mode;
@@ -506,7 +497,7 @@ def worker(proc_id, gpu_ranks, args, model):
         gpu_ranks: List of ranks of each process.
     """
     set_seed(args.seed)
-    
+
     print("Starting worker function")
 
     if args.dist_train:
@@ -525,7 +516,7 @@ def worker(proc_id, gpu_ranks, args, model):
         train_loader = str2dataloader[args.target](args, args.dataset_path, args.batch_size, 0, 1, True)
     '''
     train_loader具体实例：
-    instance = (            
+    instance = (
         [101, 7592, 103, 102, 2023, 103, 1034, 102, 0, 0, ...],  # src
         [(3, 2129), (6, 2003)],                              # 3，6被掩码  掩码前值为2129，2003
         0,                                                    #  0 表示句子对是连续的。  1 表示句子对是随机拼接的。
@@ -534,11 +525,11 @@ def worker(proc_id, gpu_ranks, args, model):
     )
 
     train_loader修改目标：
-    instance = (            
+    instance = (
         [101, 7592, 103, 102, 2023, 103, 1034, 102, 0, 0, ...],  # src  一个数据包的内容
         [(3, 2129), (6, 2003)],                              # 3，6被掩码  掩码前值为2129，2003  不变
         0,                                                    #  0 表示句子对是连续的。  1 表示句子对是随机拼接的。0,1,2,3,4
-        [4, 8],                                              #  token_A 结束于索引 4，tokne_B 结束于索引 8  
+        [4, 8],                                              #  token_A 结束于索引 4，tokne_B 结束于索引 8
         0,                                                    #  0 表示A包在数据流中的位置
         0                                                     # 协议为TCP
     )

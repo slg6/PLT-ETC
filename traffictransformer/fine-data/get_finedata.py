@@ -4,13 +4,11 @@ os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import sys
 sys.path.append(os.getcwd())
 from finetuning_data_gen import (
-    generation_multiP, 
+    generation_multiP,
 )
 def main(dataset):
-    # 设置路径
-    pcap_path = os.path.expanduser(f"~/llmfortraffic/dataPcap_flow_/{dataset}")          # pcap文件路径
-    
-    # # 1. 分解流量
+    pcap_path = os.path.expanduser(f"~/llmfortraffic/dataPcap_flow_/{dataset}")
+
     # print("Step 1: Converting and splitting pcap files...")
     # convert_splitcap(
     #     pcapng_path=pcapng_path,
@@ -23,12 +21,11 @@ def main(dataset):
     '''
 
 
-    # 2. 生成JSON文件
-    max_packets = 20    #每个流最多保留的包数量
+    max_packets = 20
     enhance_factor = 1
-    samples = 1000     #每个标签最多保留的样本数。
-    min_flow = 1 #最小的流含包数量
-    traceMaxFlow = 1000 #每个踪迹保留1000个流
+    samples = 1000
+    min_flow = 1
+    traceMaxFlow = 1000
     print("Step 2: get packet data json...")
     generation_multiP(
         dataset_path=pcap_path,
@@ -37,30 +34,26 @@ def main(dataset):
         max_packets=max_packets,
         min_flow=min_flow,
         traceMaxFlow=traceMaxFlow
-    )                             
-    
-    # # 3. 生成TSV文件
+    )
+
     # print("\nStep 3: Converting to TSV format...")
     # features = ["datagram", "length", "time", "direction", "message_type"]
     # dataset_extract(
     #     dataset_save_path=dataset_save_path,
     #     features=features
-    # )       
-    # #生成的tsv文件只包含了两列，label       text_a
-    # #                           1      [SEP] 4500 ...      
-    
-    # # 4. 数据增强
+    # )
+    # #                           1      [SEP] 4500 ...
+
     # print("\nStep 4: Performing data augmentation...")
     # enhance_based_tsv(
     #     path=dataset_save_path + "dataset/",
     #     filename="train_dataset.tsv",
     #     new_file_prefix="train_enhanced",
-    #     enhance_factor=2  # 增强倍数
     # )
 
 if __name__ == "__main__":
 
-    dataset_list = ["cipherspectrum_aes128", "cipherspectrum_aes256", 
+    dataset_list = ["cipherspectrum_aes128", "cipherspectrum_aes256",
                  "cipherspectrum_cha", "cipherspectrum_mix", "cstent", "Edge-IIoTset",'ustc']
     for dataset in dataset_list:
         print(f"----------{dataset}----------")

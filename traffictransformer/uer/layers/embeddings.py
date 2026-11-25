@@ -41,7 +41,7 @@ class WordPosEmbedding(nn.Module):
             self.layer_norm = LayerNorm(args.emb_size)
 
     def forward(self, src, _):
-        word_emb = self.word_embedding(src)     #提供的src长度不固定，函数内部会自动补足/截断输入       长度为512
+        word_emb = self.word_embedding(src)
         pos_emb = self.position_embedding(
             torch.arange(0, word_emb.size(1), device=word_emb.device, dtype=torch.long)
             .unsqueeze(0)
@@ -55,29 +55,28 @@ class WordPosEmbedding(nn.Module):
         return emb
 
 
-class WordPosSegEmbedding(nn.Module):   #BERT 模型的嵌入层
+class WordPosSegEmbedding(nn.Module):
     """
     BERT embedding consists of three parts:
     word embedding, position embedding, and segment embedding.
     """
     def __init__(self, args, vocab_size):
         super(WordPosSegEmbedding, self).__init__()
-        self.remove_embedding_layernorm = args.remove_embedding_layernorm   # 是否移除嵌入层的LayerNorm
+        self.remove_embedding_layernorm = args.remove_embedding_layernorm
         self.dropout = nn.Dropout(args.dropout)
         self.max_seq_length = args.max_seq_length
-        self.word_embedding = nn.Embedding(vocab_size, args.emb_size)   # 词嵌入层：将词ID转换为向量 词表大小 嵌入维度
-        self.position_embedding = nn.Embedding(self.max_seq_length, args.emb_size)  # 位置嵌入层：编码词在序列中的位置信息
-        self.segment_embedding = nn.Embedding(41, args.emb_size)  # 段落嵌入层：区分不同的文本段落。参数 3 代表段落标识的类型数量。0: 表示 [PAD] 填充标记。1: 表示第一个文本段落。2: 表示第二个文本段落
-        if not self.remove_embedding_layernorm:      # 层归一化，用于稳定训练
+        self.word_embedding = nn.Embedding(vocab_size, args.emb_size)
+        self.position_embedding = nn.Embedding(self.max_seq_length, args.emb_size)
+        self.segment_embedding = nn.Embedding(41, args.emb_size)
+        if not self.remove_embedding_layernorm:
             self.layer_norm = LayerNorm(args.emb_size)
 
     def forward(self, src, seg):
-        word_emb = self.word_embedding(src) #词嵌入 torch.Size([64, 320, 768])
+        word_emb = self.word_embedding(src)
         pos_emb = self.position_embedding(  #torch.Size([64, 320, 768])
             torch.arange(0, word_emb.size(1), device=word_emb.device, dtype=torch.long).unsqueeze(0).repeat(word_emb.size(0), 1)
-        )       #位置嵌入
-        #self.segment_embedding = nn.Embedding(seg_max, args.emb_size)  这里的seg_max要能包含seg的最大值。
-        seg_emb = self.segment_embedding(seg)   #段嵌入 torch.Size([64, 320])   
+        )
+        seg_emb = self.segment_embedding(seg)
 
         emb = word_emb + pos_emb + seg_emb
         if not self.remove_embedding_layernorm:

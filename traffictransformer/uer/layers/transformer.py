@@ -5,7 +5,7 @@ from uer.layers.multi_headed_attn import MultiHeadedAttention
 from uer.layers.relative_position_embedding import RelativePositionEmbedding
 from uer.layers.moe_layer import MoELayer
 
-class TransformerLayer(nn.Module):  #这是 Transformer 编码器中的一个基本构建块，多个这样的层堆叠形成完整的编码器。
+class TransformerLayer(nn.Module):
     """
     Transformer layer mainly consists of two parts:
     multi-headed self-attention and feed forward layer.
@@ -18,13 +18,13 @@ class TransformerLayer(nn.Module):  #这是 Transformer 编码器中的一个基
         if hasattr(args, "attention_head_size"):
             attention_head_size = args.attention_head_size
         else:
-            attention_head_size = args.hidden_size // args.heads_num    # 多头注意力机制的头数
+            attention_head_size = args.hidden_size // args.heads_num
 
         has_bias = bool(1 - args.remove_transformer_bias)
         with_scale = bool(1 - args.remove_attention_scale)
 
         # Multi-headed self-attention.
-        self.self_attn = MultiHeadedAttention(      #这是多头注意力机制(Multi-Head Attention)层
+        self.self_attn = MultiHeadedAttention(
             args.hidden_size, args.heads_num, attention_head_size, args.dropout, has_bias=has_bias, with_scale = with_scale
         )
         self.dropout_1 = nn.Dropout(args.dropout)
@@ -35,17 +35,17 @@ class TransformerLayer(nn.Module):  #这是 Transformer 编码器中的一个基
                 args.hidden_size, args.feedforward_size, args.hidden_act, has_bias
             )
         else:
-            self.feed_forward = PositionwiseFeedForward(        #这是前馈神经网络(Feed Forward Network, FFN)层
+            self.feed_forward = PositionwiseFeedForward(
                 args.hidden_size, args.feedforward_size, args.hidden_act, has_bias
             )
         self.dropout_2 = nn.Dropout(args.dropout)
 
         if args.layernorm == "t5":
-            self.layer_norm_1 = T5LayerNorm(args.hidden_size)   #T5LayerNorm是Transformer中的LayerNorm
+            self.layer_norm_1 = T5LayerNorm(args.hidden_size)
             self.layer_norm_2 = T5LayerNorm(args.hidden_size)
         else:
-            self.layer_norm_1 = LayerNorm(args.hidden_size)     # 第一个LayerNorm：用于注意力子层。 LayerNorm是归一化层
-            self.layer_norm_2 = LayerNorm(args.hidden_size)     # 第二个LayerNorm：用于前馈网络子层
+            self.layer_norm_1 = LayerNorm(args.hidden_size)
+            self.layer_norm_2 = LayerNorm(args.hidden_size)
 
 
 
@@ -241,5 +241,5 @@ class TransformerDecoderLayer(nn.Module):
 #        hidden = hidden + inter
 #        output = self.layer_norm_2(hidden)
 #        output = self.feed_forward(output)
-        
+
 #        return output + hidden

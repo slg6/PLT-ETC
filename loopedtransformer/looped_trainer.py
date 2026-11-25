@@ -23,7 +23,6 @@ class LoopedBertPacketsTrainer(BertPacketsTrainer):
         self.total_loss_loop_aux = 0.0
 
     def forward_propagation(self, batch, model):
-        # 父类返回的损失已除以 accumulation_steps，附加损失保持同口径。
         loss = super().forward_propagation(batch, model)
         raw_model = model.module if hasattr(model, "module") else model
         aux = getattr(raw_model, "loop_aux_loss", None)

@@ -44,7 +44,6 @@ class MlmTarget(nn.Module):
         output_mlm = output_mlm[tgt_mlm > 0, :]
         tgt_mlm = tgt_mlm[tgt_mlm > 0]
 
-        # ========== 空张量保护 ==========
         if output_mlm.size(0) == 0:
             return (
                 torch.tensor(0.0, device=memory_bank.device),   # loss
@@ -62,7 +61,7 @@ class MlmTarget(nn.Module):
             correct_mlm = torch.sum((output_mlm.argmax(dim=-1).eq(tgt_mlm)).float())
         loss_mlm = self.criterion(output_mlm, tgt_mlm)
         return loss_mlm, correct_mlm, denominator
-    
+
     def mlm2(self, memory_bank, tgt_mlm):
         # Masked language modeling (MLM) with full softmax prediction.
         output_mlm = self.act(self.mlm_linear_1(memory_bank))

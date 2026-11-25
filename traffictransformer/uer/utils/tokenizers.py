@@ -31,14 +31,14 @@ class Tokenizer(object):
                                         in range(self.sp_model.GetPieceSize())}
         else:
             self.vocab = Vocab()
-            self.vocab.load(vocab_path, is_quiet=True)  #加载词
+            self.vocab.load(vocab_path, is_quiet=True)
             self.vocab = self.vocab.w2i
         self.inv_vocab = {v: k for k, v in self.vocab.items()}
 
     def tokenize(self, text):
         raise NotImplementedError
 
-    def convert_tokens_to_ids(self, tokens):    #把tokens转换为ids
+    def convert_tokens_to_ids(self, tokens):
         if self.sp_model:
             return [self.sp_model.PieceToId(
                     printable_text(token)) for token in tokens]
@@ -53,7 +53,7 @@ class Tokenizer(object):
 
 
 class CharTokenizer(Tokenizer):
-        
+
     def __init__(self, args, is_src=True):
         super().__init__(args, is_src)
 
@@ -65,7 +65,7 @@ class CharTokenizer(Tokenizer):
 
 
 class SpaceTokenizer(Tokenizer):
-     
+
     def __init__(self, args, is_src=True):
         super().__init__(args, is_src)
 
@@ -186,7 +186,7 @@ def printable_text(text):
         raise ValueError("Not running on Python2 or Python 3?")
 
 
-def convert_by_vocab(vocab, items):     #把tokens转换为ids
+def convert_by_vocab(vocab, items):
     """Converts a sequence of [tokens|ids] using the vocab."""
     output = []
     for item in items:
@@ -217,15 +217,15 @@ class BertTokenizer(Tokenizer):
     def __init__(self, args, is_src=True, do_lower_case=True):
         super().__init__(args, is_src)
         if not args.spm_model_path:
-            self.basic_tokenizer = BasicTokenizer(do_lower_case=do_lower_case)  #负责基础的文本预处理和分词，转小写、标点符号分割、清理无效字符...
-            self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab) #执行词片段(WordPiece)分词，使用贪婪的最长匹配优先算法
+            self.basic_tokenizer = BasicTokenizer(do_lower_case=do_lower_case)
+            self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab)
 
-    def tokenize(self, text):   #将输入文本转换为 token 序列
-        if self.sp_model:       # 使用SentencePiece模型(如果有)
+    def tokenize(self, text):
+        if self.sp_model:
             split_tokens = encode_pieces(self.sp_model, text, return_unicode=False)
-        else:           #使用基本分词器和词片段分词器
+        else:
             split_tokens = []
-            for token in self.basic_tokenizer.tokenize(text):   #token 是由 basic_tokenizer 分词后得到的基本单元 BasicTokenizer 的主要处理步骤：清理无效字符、按空格分割
+            for token in self.basic_tokenizer.tokenize(text):
                 for sub_token in self.wordpiece_tokenizer.tokenize(token):
                     split_tokens.append(sub_token)
 
@@ -352,7 +352,7 @@ class WordpieceTokenizer(object):
     def __init__(self, vocab, unk_token="[UNK]", max_input_chars_per_word=200):
         self.vocab = vocab  #vocab = {'[PAD]': 0, '[SEP]': 1, '[CLS]': 2, '[UNK]': 3, '[MASK]': 4, '0': 5, '1': 6, '2': 7, '3': 8, '4': 9, '5': 10, '6': 11, '7': 12, '8': 13, '9': 14, 'a': 15, 'b': 16, 'c': 17, 'd': 18, 'e': 19, 'f': 20, '##6': 21, '##1': 22, '##7': 23, '##b': 24, '##5': 25, '##e': 26, '##a': 27, '##c': 28, '##3': 29, '##f': 30, '##4': 31, '##2': 32, '##9': 33, '##8': 34, '##0': 35, '##d': 36, '##00': 37, '00': 38, '000': 39, '##01': 40, '0000': 41, '##08': 42, '##40': 43, '08': 44, '01': 45, '##83': 46, '##45': 47, '##ac': 48, '##50': 49, '##3c': 50, '##e1': 51, '##4d': 52, '##09': 53, '##36': 54, '##fe': 55, '##f0': 56, '##dc': 57, '##bb': 58, ...}
         self.unk_token = unk_token
-        self.max_input_chars_per_word = max_input_chars_per_word    #用于限制单个词的最大字符数，此处最多为4
+        self.max_input_chars_per_word = max_input_chars_per_word
 
     def tokenize(self, text):
         """Tokenizes a piece of text into its word pieces.
@@ -389,9 +389,9 @@ class WordpieceTokenizer(object):
                 cur_substr = None
                 while start < end:
                     substr = "".join(chars[start:end])
-                    if start > 0:   #如果没有之间匹配就进行分割
+                    if start > 0:
                         substr = "##" + six.ensure_str(substr)
-                    if substr in self.vocab:        #如果找到就不再分割
+                    if substr in self.vocab:
                         cur_substr = substr
                         break
                     end -= 1

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 
-class MultiHeadedAttention(nn.Module):      #多头注意力机制
+class MultiHeadedAttention(nn.Module):
     """
     Each head is a self-attention operation.
     self-attention refers to https://arxiv.org/pdf/1706.03762.pdf
@@ -20,7 +20,7 @@ class MultiHeadedAttention(nn.Module):      #多头注意力机制
         self.linear_layers = nn.ModuleList(
                 [nn.Linear(hidden_size, self.inner_hidden_size, bias=has_bias) for _ in range(3)]
             )
-        
+
         self.dropout = nn.Dropout(dropout)
         self.final_linear = nn.Linear(self.inner_hidden_size, hidden_size, bias=has_bias)
 

@@ -26,7 +26,6 @@
 import os
 import sys
 os.environ["CUDA_VISIBLE_DEVICES"] = "2"
-# 路径自定位，不依赖固定的用户目录。
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(_THIS_DIR)
 _TRAFFIC_DIR = os.path.join(_REPO_ROOT, "traffictransformer")
@@ -94,7 +93,6 @@ def main():
 
     # Model options.
     model_opts(parser)
-    # 在原有 encoder 候选之外追加循环编码器，不修改 opts.py。
     for action in parser._actions:
         if action.dest == "encoder":
             action.choices = list(action.choices) + ["looped_transformer"]
@@ -102,7 +100,6 @@ def main():
     parser.add_argument("--loop_num", type=int, default=None,
                         help="循环次数。缺省时读取配置文件中的 loop_num，"
                              "配置文件也没有时等于 layers_num。")
-    # 随机深度预训练与逐循环监督，缺省关闭，保持基线行为不变。
     parser.add_argument("--loop_num_min", type=int, default=None,
                         help="随机深度预训练的循环次数下界。设置后训练阶段每个 step 从 "
                              "[loop_num_min, loop_num] 均匀采样实际循环次数，"
@@ -130,7 +127,6 @@ def main():
     parser.add_argument("--has_lmtarget_bias", action="store_true",
                         help="Add bias on output_layer for lm target.")
 
-    # MOE Model Options（基线不支持，仅为参数兼容保留）。
     parser.add_argument("--is_moe", action="store_true", help="adopt moe layer.")
     parser.add_argument("--vocab_size", type=int, required=False, help="Number of vocab.")
     parser.add_argument("--moebert_expert_dim", type=int, required=False, default=3072,
@@ -169,18 +165,14 @@ def main():
 
     if args.config_path:
         args = load_hyperparam(args)
-    # 命令行的 --loop_num 优先级高于配置文件。
     if args.loop_num is None:
         args.loop_num = getattr(args, "layers_num", 12)
-    # 还原命令行显式指定的 loop_num（load_hyperparam 可能覆盖命名空间）。
-    # 简化处理：配置文件中的 loop_num 可被 --loop_num 覆盖。
     cli_loop_num = None
     for i, a in enumerate(sys.argv):
         if a == "--loop_num" and i + 1 < len(sys.argv):
             cli_loop_num = int(sys.argv[i + 1])
     if cli_loop_num is not None:
         args.loop_num = cli_loop_num
-    # 同理还原命令行显式指定的 loop_num_min。
     cli_loop_num_min = None
     for i, a in enumerate(sys.argv):
         if a == "--loop_num_min" and i + 1 < len(sys.argv):
@@ -188,7 +180,6 @@ def main():
     if cli_loop_num_min is not None:
         args.loop_num_min = cli_loop_num_min
 
-    # 三个新参数的归一化：配置文件与命令行都没给时取缺省值。
     args.loop_num_min = getattr(args, "loop_num_min", None)
     args.loop_sup_weight = getattr(args, "loop_sup_weight", None) or 0.0
     args.loop_distill_weight = getattr(args, "loop_distill_weight", None) or 0.0
@@ -218,11 +209,7 @@ def main():
         args.single_gpu = False
         print("Using CPU mode for training.")
 
-    # 关键注入点：把模型构建函数替换为循环版本，trainer 其余逻辑完全复用。
     trainer.build_model = build_looped_model
-    # 开启逐循环监督或一致性蒸馏时，把 bertpackets 训练器替换为
-    # 能读取 model.loop_aux_loss 的版本。两者都关闭时保持原训练器，
-    # 行为与基线逐字节一致。
     if args.target == "bertpackets" and \
             (args.loop_sup_weight > 0.0 or args.loop_distill_weight > 0.0):
         from uer.trainer import str2trainer

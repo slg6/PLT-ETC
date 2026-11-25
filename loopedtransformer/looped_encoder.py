@@ -24,12 +24,9 @@ class LoopedTransformerEncoder(TransformerEncoder):
     def __init__(self, args):
         assert not args.is_moe, "参数共享基线暂不支持 MoE。"
         assert args.mask == "fully_visible", "基线版本仅支持 fully_visible 掩码。"
-        # 强制父类走参数共享分支，只构建一个共享块 self.transformer。
         args.parameter_sharing = True
         super().__init__(args)
-        # 循环次数，默认等于 layers_num，保证与原模型等深可比。
         self.loop_num = getattr(args, "loop_num", None) or args.layers_num
-        # 随机深度下界。None 表示关闭，固定循环 loop_num 次。
         self.loop_num_min = getattr(args, "loop_num_min", None)
 
     def forward(self, emb, seg, input_ids=None, proto=None,
@@ -46,7 +43,6 @@ class LoopedTransformerEncoder(TransformerEncoder):
             emb = self.linear(emb)
 
         batch_size, seq_length, _ = emb.size()
-        # fully_visible 掩码，与原始实现保持一致。
         mask = (seg > 0). \
             unsqueeze(1). \
             repeat(1, seq_length, 1). \
@@ -60,8 +56,6 @@ class LoopedTransformerEncoder(TransformerEncoder):
         else:
             position_bias = None
 
-        # 随机深度：训练模式下每个 step（每次前向）采样一次实际循环次数。
-        # 采样的随机性由 uer.utils.seed.set_seed 统一控制，可复现。
         loop_num = self.loop_num
         if self.training and self.loop_num_min is not None \
                 and self.loop_num_min < self.loop_num:

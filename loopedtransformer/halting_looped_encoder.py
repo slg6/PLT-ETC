@@ -36,12 +36,9 @@ class HaltingLoopedTransformerEncoder(LoopedTransformerEncoder):
 
     def __init__(self, args):
         super().__init__(args)
-        # 累计把握度超过该值即停机。略小于 1，避免 sigmoid 需精确凑满。
         self.halting_threshold = getattr(args, "halting_threshold", 0.99)
-        # 从哪个 pooled 向量评估把握度，缺省跟随分类 pooling。
         self.halting_pooling = getattr(args, "halting_pooling", None) \
             or getattr(args, "pooling", "first")
-        # 把握度打分器：state -> z，p = sigmoid(z)。
         self.halting_linear = nn.Linear(args.hidden_size, 1)
 
         self.halt_check_every = getattr(args, "halt_check_every", 0) or 1  # or 2
@@ -62,7 +59,6 @@ class HaltingLoopedTransformerEncoder(LoopedTransformerEncoder):
             emb = self.linear(emb)
 
         batch_size, seq_length, _ = emb.size()
-        # fully_visible 掩码，与原始实现保持一致。
         mask = (seg > 0). \
             unsqueeze(1). \
             repeat(1, seq_length, 1). \
@@ -78,35 +74,28 @@ class HaltingLoopedTransformerEncoder(LoopedTransformerEncoder):
 
         loop_hiddens = []
         probss = []
-        # ACT 逐样本停机状态。
         halting_probability = torch.zeros(batch_size, device=emb.device)
         remainders = torch.zeros(batch_size, device=emb.device)
         n_updates = torch.zeros(batch_size, device=emb.device)
 
         for i in range(self.loop_num):
             still_running = (halting_probability < 1.0).float()
-            # 本轮把握度增量：打分器看当前 pooled 状态，输出 0~1。
             p = torch.sigmoid(self.halting_linear(
                 self._pool_for_halting(hidden))).squeeze(-1)
 
             increment = p * still_running
-            # 本轮加完 p 后首次越过阈值的样本。
             new_halted = (
                 halting_probability + increment > self.halting_threshold
             ).float() * still_running
-            # 更新后仍在运行的样本。
             still_running = (
                 halting_probability + increment <= self.halting_threshold
             ).float() * still_running
 
-            # 只给未停机样本累加 p；刚停机的由 remainders 补到 1。
             halting_probability = halting_probability + increment
             remainders = remainders + new_halted * (1.0 - halting_probability)
             halting_probability = halting_probability + new_halted * remainders
-            # 本轮实际消耗了一次更新的样本数。
             n_updates = n_updates + still_running + new_halted
 
-            # 未停机按 p 采纳新状态，刚停机按 remainders，已停机不更新。
             update_weights = (
                 increment + new_halted * remainders
             ).view(-1, 1, 1)
@@ -114,18 +103,14 @@ class HaltingLoopedTransformerEncoder(LoopedTransformerEncoder):
             transformed, probs = self.transformer(hidden, mask,
                                                   position_bias=position_bias)
             # hidden = transformed * update_weights + hidden * (1.0 - update_weights)
-            # hidden + (transformed - hidden) * w 与 transformed*w + hidden*(1-w)
-            # 数学等价，用 addcmul 把两次乘加融合，少一个 kernel。
             # hidden = torch.addcmul(hidden, transformed - hidden, update_weights)
             hidden = torch.lerp(hidden, transformed, update_weights)
-            
+
             if output_loop_hiddens:
                 loop_hiddens.append(hidden)
             if output_attentions:
                 probss.append(probs)
 
-            # 评估模式下整个 batch 全部停机则提前退出，省推理算力。
-            # 训练模式不提前退出，保持计算图在各训练步间静态一致。
             if (not self.training
                     and i+1 >= 8    # or n
                     and (i + 1) % self.halt_check_every == 0

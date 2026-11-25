@@ -20,9 +20,9 @@ def main():
 
     # Path options.
     parser.add_argument("--corpus_path", type=str, default="vocab_gen/direction_bpe_corpus_tcp_udp.txt",
-                        help="Path of the corpus for pretraining.") #预训练语料库的路径
-    parser.add_argument("--vocab_path", default="vocab_gen/vocab_packet_4chars_all.txt", type=str, 
-                        help="Path of the vocabulary file.")    #词汇表文件路径
+                        help="Path of the corpus for pretraining.")
+    parser.add_argument("--vocab_path", default="vocab_gen/vocab_packet_4chars_all.txt", type=str,
+                        help="Path of the vocabulary file.")
     parser.add_argument("--spm_model_path", default=None, type=str,
                         help="Path of the sentence piece model.")
     parser.add_argument("--tgt_vocab_path", default=None, type=str,
@@ -30,35 +30,32 @@ def main():
     parser.add_argument("--tgt_spm_model_path", default=None, type=str,
                         help="Path of the target sentence piece model.")
     parser.add_argument("--dataset_path", type=str, default="pre-training/dataset/dataset.pt",
-                        help="Path of the preprocessed dataset.")   #预处理后数据集的保存路径
+                        help="Path of the preprocessed dataset.")
 
     # Preprocess options.
     parser.add_argument("--tokenizer", choices=["bert", "char", "space"], default="bert",
-                        help="Specify the tokenizer." 
+                        help="Specify the tokenizer."
                              "Original Google BERT uses bert tokenizer on Chinese corpus."
                              "Char tokenizer segments sentences into characters."
                              "Space tokenizer segments sentences into words according to space."
-                             )  #指定分词器类型
+                             )
     parser.add_argument("--tgt_tokenizer", choices=["bert", "char", "space"], default="bert",
                         help="Specify the tokenizer.")
-    
-    #训练时将数据集分割为多少份并行处理
+
     parser.add_argument("--processes_num", type=int, default=30,
                         help="Split the whole dataset into `processes_num` parts, "
                              "and each part is fed to a single process in training step.")
-    
-    #训练目标类型
+
     parser.add_argument("--target", choices=["bert", "bertflow","bertpackets","lm", "mlm", "bilm", "albert", "seq2seq", "t5", "cls", "prefixlm"], default="bertpackets",
                         help="The training dataset target.")
     parser.add_argument("--docs_buffer_size", type=int, default=100000, #default=100000
                         help="The buffer size of documents in memory, specific to targets that require negative sampling.")
-    
-    #序列长度
-    parser.add_argument("--seq_length", type=int, default=221, help="Sequence length of instances.") 
-    parser.add_argument("--num_packet", type=int, default=20, help="Sequence length of instances.") 
+
+    parser.add_argument("--seq_length", type=int, default=221, help="Sequence length of instances.")
+    parser.add_argument("--num_packet", type=int, default=20, help="Sequence length of instances.")
     parser.add_argument("--tgt_seq_length", type=int, default=128, help="Target sequence length of instances.")
     parser.add_argument("--dup_factor", type=int, default=5,
-                        help="Duplicate instances multiple times.") #多次复制实例。
+                        help="Duplicate instances multiple times.")
     parser.add_argument("--short_seq_prob", type=float, default=0.1,
                         help="Probability of truncating sequence."
                              "The larger value, the higher probability of using short (truncated) sequence.")
@@ -77,18 +74,15 @@ def main():
     args = parser.parse_args()
 
     # Dynamic masking.
-    # 如果使用动态掩码，将重复因子设为1
     if args.dynamic_masking:
         args.dup_factor = 1
 
     # Build tokenizer.
-    #构建分词器
     tokenizer = str2tokenizer[args.tokenizer](args) #BertTokenizer(args)    args.tokenizer:default="bert"
     if args.target == "seq2seq":
         args.tgt_tokenizer = str2tokenizer[args.tgt_tokenizer](args, False)
 
     # Build and save dataset.
-    #构建并保存数据集
     dataset = str2dataset[args.target](args, tokenizer.vocab, tokenizer)#BertFlowDataset(args, tokenizer.vocab, tokenizer)
     '''
     词汇表（vocab.txt 或 encryptd_vocab.txt）是分词器的核心组件，它定义了所有可能的 token 及其对应的 ID

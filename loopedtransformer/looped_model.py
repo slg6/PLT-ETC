@@ -53,7 +53,6 @@ class LoopedModel(Model):
         其余 target 返回 None 表示跳过逐循环监督。
         """
         if hasattr(self.target, "mlm1") and hasattr(self.target, "mlm2"):
-            # bertpackets：tgt 为 (tgt_mlm, label, field_modified)。
             tgt_mlm, _, field_modified = tgt
             loss_mlm, _, _ = self.target.mlm1.mlm(hidden, tgt_mlm)
             loss_fm, _, _ = self.target.mlm2.mlm(hidden, field_modified)
@@ -65,7 +64,6 @@ class LoopedModel(Model):
 
     def forward(self, src, tgt, seg, proto=None):
         self.loop_aux_loss = None
-        # 只有训练模式 + 循环编码器 + 权重非零时才需要中间轮隐藏态。
         need_loop_hiddens = (
             self.training
             and (self.loop_sup_weight > 0.0 or self.loop_distill_weight > 0.0)
@@ -74,8 +72,6 @@ class LoopedModel(Model):
         emb = self.embedding(src, seg)
         output = self.encoder(emb, seg, proto=proto,
                               output_loop_hiddens=need_loop_hiddens)
-        # 兼容三种返回形态：张量、（隐藏态, 隐藏态列表）、
-        # 停机编码器的（隐藏态, act_stats, 隐藏态列表）。
         loop_hiddens = None
         if isinstance(output, (tuple, list)):
             hidden = output[0]
@@ -86,7 +82,6 @@ class LoopedModel(Model):
             hidden = output
         loss_info = self.target(hidden, tgt)
 
-        # 随机深度下本轮可能只循环 1 次，此时没有中间轮，跳过附加损失。
         if need_loop_hiddens and loop_hiddens and len(loop_hiddens) > 1:
             norm = self._final_norm()
             intermediates = loop_hiddens[:-1]
@@ -104,17 +99,14 @@ class LoopedModel(Model):
                         break
                     sup = loss_i if sup is None else sup + loss_i
                 if sup is not None:
-                    aux = aux + self.loop_sup_weight * sup / n_inter        #逐轮监督消融。
-                    # aux = aux        #逐轮监督消融。
+                    aux = aux + self.loop_sup_weight * sup / n_inter
 
             if self.loop_distill_weight > 0.0:
-                # 最后一轮输出作教师，阻断梯度，只让浅层向深层靠拢。
                 ref = hidden.detach()
                 dis = hidden.new_zeros(())
                 for h in intermediates:
                     dis = dis + F.mse_loss(h, ref)
-                aux = aux + self.loop_distill_weight * dis / n_inter        #一致性蒸馏消融。
-                # aux = aux        #一致性蒸馏消融。
+                aux = aux + self.loop_distill_weight * dis / n_inter
 
             self.loop_aux_loss = aux
         return loss_info

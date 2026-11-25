@@ -1,7 +1,6 @@
 import os
 # os.chdir(os.path.expanduser("~/llmfortraffic/looptransformer/traffictransformer"))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# os.environ["CUDA_LAUNCH_BLOCKING"] = "2"   # 同步调试模式（注意值通常是 "1"）
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import sys
 sys.path.append(os.getcwd())
@@ -31,10 +30,10 @@ def main():
                         help="Path of the pretrained model.")
     parser.add_argument("--output_model_path", type=str, default="pre-training/pre-training-model/pretrained_model.bin",
                         help="Path of the output model.")
-    parser.add_argument("--config_path", type=str, default="models/bert/base_config_packets.json", #define the model 
+    parser.add_argument("--config_path", type=str, default="models/bert/base_config_packets.json", #define the model
                         help="Config file of model hyper-parameters.")
 
-    # Training and saving options. 
+    # Training and saving options.
     parser.add_argument("--total_steps", type=int, default=120000,
                         help="Total training steps.")
     parser.add_argument("--save_checkpoint_steps", type=int, default=10000,
@@ -73,7 +72,7 @@ def main():
                         help="Tie the word embedding and softmax weights.")
     parser.add_argument("--has_lmtarget_bias", action="store_true",
                         help="Add bias on output_layer for lm target.")
-    
+
     #MOE Model Options
     parser.add_argument("--is_moe", action="store_true", help="adopt moe layer.")
     parser.add_argument("--vocab_size", type=int, required=False, help="Number of vocab.")
@@ -83,7 +82,7 @@ def main():
                         help="moebert route method.")
     parser.add_argument("--moebert_route_hash_list", default=None, type=str, help="Path of moebert hash list file.")
     parser.add_argument("--moebert_load_balance", type=float, default=0.0, help="gate loss weight.")
-    
+
     # Masking options.
     parser.add_argument("--whole_word_masking", action="store_true", help="Whole word masking.")
     parser.add_argument("--span_masking", action="store_true", help="Span masking.")
@@ -107,9 +106,9 @@ def main():
     # if args.target == "cls":
     #     assert args.labels_num is not None, "Cls target needs the denotation of the number of labels."
 
-    # Load hyper-parameters from config file. 
+    # Load hyper-parameters from config file.
     if args.config_path:
-        load_hyperparam(args)   #加载模型参数
+        load_hyperparam(args)
 
     ranks_num = len(args.gpu_ranks)
 

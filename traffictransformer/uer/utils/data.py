@@ -12,9 +12,9 @@ from uer.utils.fieldNegativeGenerator import FieldNegativeGenerator as FNG
 from copy import deepcopy
 
 def mask_seq(src, tokenizer, whole_word_masking, span_masking, span_geo_prob, span_max_length):
-    vocab = tokenizer.vocab     #从分词器中获取词汇表。
+    vocab = tokenizer.vocab
 
-    for i in range(len(src) - 1, -1, -1):      # 跳过尾部的填充（PAD）：
+    for i in range(len(src) - 1, -1, -1):
         if src[i] != PAD_ID:
             break
     src_no_pad = src[:i + 1]
@@ -25,7 +25,7 @@ def mask_seq(src, tokenizer, whole_word_masking, span_masking, span_geo_prob, sp
         src = src_no_pad
 
     random.shuffle(tokens_index)
-    num_to_predict = max(1, int(round(len(src_no_pad) * 0.15))) #num_to_predict:掩码的token数量  0.15:默认掩码比例为 15%（BERT 的标准设置）。  至少掩码一个 token（max(1, ...)）。
+    num_to_predict = max(1, int(round(len(src_no_pad) * 0.15)))
     tgt_mlm = []
     for index_set in tokens_index:
         if len(tgt_mlm) >= num_to_predict:
@@ -71,24 +71,24 @@ def mask_seq(src, tokenizer, whole_word_masking, span_masking, span_geo_prob, sp
         else:
             i = index_set[0]
             token = src[i]
-            tgt_mlm.append((i, token))  #被掩码的位置，被掩码前的值
+            tgt_mlm.append((i, token))
             prob = random.random()
-            if prob < 0.8:  #80% 的概率用掩码 token 替换。
+            if prob < 0.8:
                 src[i] = vocab.get(MASK_TOKEN)
-            elif prob < 0.9: #10% 的概率用随机 token 替换。    
+            elif prob < 0.9:
                 while True:
                     rdi = random.randint(1, len(vocab) - 1)
                     if rdi not in [vocab.get(CLS_TOKEN), vocab.get(SEP_TOKEN), vocab.get(MASK_TOKEN), PAD_ID]:
                         break
-                src[i] = rdi        #10% 的概率保持原 token 不变。
+                src[i] = rdi
     tgt_mlm = sorted(tgt_mlm, key=lambda x: x[0])
     return src, tgt_mlm
 
 
 def create_index(src, tokenizer, whole_word_masking, span_masking, span_geo_prob, span_max_length):
-    tokens_index = []   #用于存储掩码索引。
-    span_end_position = -1  #记录跨度掩码的结束位置。
-    vocab = tokenizer.vocab     #从分词器中获取词汇表。
+    tokens_index = []
+    span_end_position = -1
+    vocab = tokenizer.vocab
     if whole_word_masking:  #false
         src_wwm = []
         src_length = len(src)
@@ -119,7 +119,7 @@ def create_index(src, tokenizer, whole_word_masking, span_masking, span_geo_prob
         for (i, token) in enumerate(src):
             if token == vocab.get(CLS_TOKEN) or token == vocab.get(SEP_TOKEN) or token == PAD_ID:
                 continue
-            if not span_masking:    #如果未启用跨度掩码
+            if not span_masking:
                 tokens_index.append([i])
             else:
                 if i < span_end_position:
@@ -155,7 +155,6 @@ def get_span_len(max_span_len, p):
 def merge_dataset(dataset_path, workers_num):
     # Merge datasets.
     #slg
-    # 创建临时目录
     temp_dir = "temp_debug"
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
@@ -164,27 +163,23 @@ def merge_dataset(dataset_path, workers_num):
     for i in range(workers_num):
         # if i == 1:
         #     continue
-        # print(f"合并{i}个文件")
-        # tmp_dataset_reader = open("/mnt/data/zgm/ET-BERT/datasets/temp/dataset-tmp-" + str(i) + ".pt", "rb") #源代码
         #slg
         tmp_path = os.path.join(temp_dir, f"dataset-tmp-{i}.pt")
         tmp_dataset_reader = open(tmp_path, "rb")
         #slg
         while True:
-            tmp_data = tmp_dataset_reader.read(2**22) 
+            tmp_data = tmp_dataset_reader.read(2**22)
             if tmp_data:
                 dataset_writer.write(tmp_data)
             else:
                 break
         tmp_dataset_reader.close()
-        # os.remove("/mnt/data/zgm/ET-BERT/datasets/temp/dataset-tmp-" + str(i) + ".pt") #源代码
         #slg
-        os.remove(tmp_path) #不清理
+        os.remove(tmp_path)
         #slg
     dataset_writer.close()
     #slg
-    # 清理临时目录
-    os.rmdir(temp_dir)        #不清理
+    os.rmdir(temp_dir)
     #slg
 
 def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens):
@@ -193,11 +188,11 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens):
         total_length = len(tokens_a) + len(tokens_b)
         if total_length <= max_num_tokens:
             break
-        trunc_tokens = tokens_a if len(tokens_a) > len(tokens_b) else tokens_b  #比较 tokens_a 和 tokens_b 的长度，选择较长的序列进行截断。
-        if random.random() < 0.5: 
-            del trunc_tokens[0] #如果随机数小于 0.5，则删除序列的第一个元素（del trunc_tokens[0]）。
+        trunc_tokens = tokens_a if len(tokens_a) > len(tokens_b) else tokens_b
+        if random.random() < 0.5:
+            del trunc_tokens[0]
         else:
-            trunc_tokens.pop()  #否则，删除序列的最后一个元素（trunc_tokens.pop()）。
+            trunc_tokens.pop()
 
 def record_flow_start(corpus_path):
     starts = []
@@ -249,7 +244,6 @@ class Dataset(object):
         else:
             pool = Pool(workers_num)
             # if split_by_flow:
-            #     starts = record_flow_start(self.corpus_path)        #预训练语料库中 每个流的起始行号
             # current_index = 0
             for i in range(workers_num):
                 if split_by_flow:
@@ -262,11 +256,11 @@ class Dataset(object):
                     #     current_index = len(starts)-1
                     # end = starts[current_index]
                     start = starts[i*(len(starts)-1)//workers_num]
-                    end = starts[(i+1)*(len(starts)-1)//workers_num]    #一个进程分一部分语料
+                    end = starts[(i+1)*(len(starts)-1)//workers_num]
                 else:
                     start = i * lines_num // workers_num
                     end = (i + 1) * lines_num // workers_num
-                pool.apply_async(func=self.worker, args=[i, start, end])        #每个进程处理一部分语料
+                pool.apply_async(func=self.worker, args=[i, start, end])
             pool.close()
             #slg
             # for _ in tqdm.tqdm(range(workers_num), desc="Processing", unit="worker"):
@@ -278,8 +272,8 @@ class Dataset(object):
             # self.worker(i, start, end)
             #slg
         # Merge datasets.
-        merge_dataset(self.dataset_path, workers_num)   #合并保存，并行处理的数据集
-        
+        merge_dataset(self.dataset_path, workers_num)
+
 
     def worker(self, proc_id, start, end):
         raise NotImplementedError()
@@ -289,7 +283,7 @@ class DataLoader(object):
     def __init__(self, args, dataset_path, batch_size, proc_id, proc_num, shuffle=False):
         self.tokenizer = args.tokenizer
         self.batch_size = batch_size
-        self.instances_buffer_size = args.instances_buffer_size #默认为25600
+        self.instances_buffer_size = args.instances_buffer_size
         self.proc_id = proc_id
         self.proc_num = proc_num
         self.shuffle = shuffle
@@ -309,24 +303,22 @@ class DataLoader(object):
     #         while True:
     #             instance = pickle.load(self.dataset_reader)
     #             self.read_count += 1
-    #     except EOFError:        #instance = pickle.load(self.dataset_reader) 加载完所有实例后继续加载会报错EOFError
     #         # Reach file end.
     #         print(self.read_count)
-    #         self.dataset_reader.seek(0)     #文件从头加载
 
     def _fill_buf(self):
         try:
             self.buffer = []
             while True:
-                instance = pickle.load(self.dataset_reader)   #共有63504950个实例
+                instance = pickle.load(self.dataset_reader)
                 self.read_count += 1
-                if (self.read_count - 1) % self.proc_num == self.proc_id: 
+                if (self.read_count - 1) % self.proc_num == self.proc_id:
                     self.buffer.append(instance)
                     if len(self.buffer) >= self.instances_buffer_size:
                         break
-        except EOFError:        #instance = pickle.load(self.dataset_reader) 加载完所有实例后继续加载会报错EOFError
+        except EOFError:
             # Reach file end.
-            self.dataset_reader.seek(0)     #文件从头加载
+            self.dataset_reader.seek(0)
 
         if self.shuffle:
             random.shuffle(self.buffer)
@@ -356,19 +348,16 @@ class BertDataset(Dataset):
         print("Worker %d is building dataset ... " % proc_id)
         set_seed(self.seed)
         #slg
-        # 创建临时目录
         temp_dir = "temp"
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir)
-            
-        # 使用相对路径
+
         tmp_path = os.path.join(temp_dir, f"dataset-tmp-{proc_id}.pt")
         dataset_writer = open(tmp_path, "wb")
         #slg
         docs_buffer = []
         document = []
         pos = 0
-        # dataset_writer = open("/mnt/data/zgm/ET-BERT/datasets/temp/dataset-tmp-" + str(proc_id) + ".pt", "wb") #源代码
         with open(self.corpus_path, mode="r", encoding="utf-8") as f:
             while pos < start:
                 f.readline()
@@ -383,23 +372,23 @@ class BertDataset(Dataset):
                             pickle.dump(instance, dataset_writer)
                     break
 
-                if not line.strip(): 
+                if not line.strip():
                     if len(document) >= 1:
                         docs_buffer.append(document)
                     document = []
-                    if len(docs_buffer) == self.docs_buffer_size: 
+                    if len(docs_buffer) == self.docs_buffer_size:
                         print("Worker {}: Docs buffer is full, build instances...".format(proc_id))
                         # Build instances from documents.
                         instances = self.build_instances(docs_buffer)
                         # Save instances.
-                        for instance in instances: 
+                        for instance in instances:
                             pickle.dump(instance, dataset_writer)
                         # Clear buffer.
                         docs_buffer = []
                     continue
                 if line[:2] == "||":
                     line = line[2:]
-                sentence = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line)) 
+                sentence = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line))
                 if len(sentence) > 0:
                     document.append(sentence)
 
@@ -407,11 +396,11 @@ class BertDataset(Dataset):
 
     def build_instances(self, all_documents):
         instances = []
-        for _ in range(self.dup_factor):        #多次复制实例
+        for _ in range(self.dup_factor):
             for doc_index in range(len(all_documents)):
                 instances.extend(self.create_ins_from_doc(all_documents, doc_index))
                 '''
-                all_documents = 
+                all_documents =
                 [
                     [       #docs_buffer
                         [       #document
@@ -421,7 +410,7 @@ class BertDataset(Dataset):
 
                         ...
                     ]
-                    
+
                     ...
                 ]
                 '''
@@ -444,7 +433,7 @@ class BertDataset(Dataset):
             if i == len(document) - 1 or current_length >= target_seq_length:
                 if current_chunk:
                     a_end = 1
-                    if len(current_chunk) >= 2: 
+                    if len(current_chunk) >= 2:
                         a_end = random.randint(1, len(current_chunk) - 1)
 
                     tokens_a = [] #seg 1
@@ -454,7 +443,7 @@ class BertDataset(Dataset):
                     tokens_b = [] ##seg 2
                     is_random_next = 0
 
-                    if len(current_chunk) == 1 or random.random() < 0.5: 
+                    if len(current_chunk) == 1 or random.random() < 0.5:
                         is_random_next = 1
                         target_b_length = target_seq_length - len(tokens_a)
 
@@ -470,7 +459,7 @@ class BertDataset(Dataset):
                             if len(tokens_b) >= target_b_length:
                                 break
 
-                        num_unused_segments = len(current_chunk) - a_end 
+                        num_unused_segments = len(current_chunk) - a_end
                         i -= num_unused_segments
 
                     else:
@@ -479,7 +468,7 @@ class BertDataset(Dataset):
                             tokens_b.extend(current_chunk[j])
 
                     truncate_seq_pair(tokens_a, tokens_b, max_num_tokens)
-  
+
                     src = []
                     src.append(self.vocab.get(CLS_TOKEN))
                     src.extend(tokens_a)
@@ -520,24 +509,21 @@ class BertFlowDataset(Dataset):
 
     def worker(self, proc_id, start, end):
         print("Worker %d is building dataset ... " % proc_id)
-        print(start,end)        #处理的起始行，终止行
+        print(start,end)
         set_seed(self.seed)
         #slg
-        # 创建临时目录
         temp_dir = "temp"
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir)
-            
-        # 使用相对路径
+
         tmp_path = os.path.join(temp_dir, f"dataset-tmp-{proc_id}.pt")
         dataset_writer = open(tmp_path, "wb")
         #slg
-        flow_buffer = []    #存储处理后的流量数据。
-        flow_proto = [] #存储协议信息。
-        docs_buffer = []    #存储当前文档的段落数据。
-        document = []   #存储当前段落的句子数据。
-        pos = 0 #当前处理的行号。
-        # dataset_writer = open("/mnt/data/zgm/ET-BERT/datasets/temp/dataset-tmp-" + str(proc_id) + ".pt", "wb") #源代码
+        flow_buffer = []
+        flow_proto = []
+        docs_buffer = []
+        document = []
+        pos = 0
         with open(self.corpus_path, mode="r", encoding="utf-8") as f:
             try:
                 #with open(self.corpus_path[:-4]+"_extra.txt", mode="r", encoding="utf-8") as fe:
@@ -550,40 +536,40 @@ class BertFlowDataset(Dataset):
                         print("not flow start...")
                     pos += 1
                     if pos > end:
-                        if len(docs_buffer) >= 1:   #len(docs_buffer[i]) == 2,是突发的两部分  docs_buffer是这个进程要处理的所有的突发
+                        if len(docs_buffer) >= 1:
                             flow_buffer.append(docs_buffer)
-                            
-                        if len(flow_buffer) > 0:        #len(flow_buffer) 是处理部分含有多少条流量，  len(flow_buffer[i])  是i条流量中含有多少对突发
+
+                        if len(flow_buffer) > 0:
                             try:
-                                instances = self.build_instances(flow_buffer,flow_proto) #生成实例
+                                instances = self.build_instances(flow_buffer,flow_proto)
                             except Exception as e:
                                 print("has error2...", len(flow_buffer), len(flow_proto), e)
                             for instance in instances:
                                 pickle.dump(instance, dataset_writer)
                         break
 
-                    if not line.strip(): 
+                    if not line.strip():
                         if len(document) >= 1:
                             docs_buffer.append(document)
                         document = []
                         continue
-                    if line[:2] == "||" or not line: 
+                    if line[:2] == "||" or not line:
                         if len(docs_buffer) >= 1:
                             flow_buffer.append(docs_buffer)
                         docs_buffer = []
-                    
+
                         flow_buffer_size = 0
                         for d in flow_buffer:
                             flow_buffer_size += len(d)
-                        if flow_buffer_size > self.docs_buffer_size or pos>=end: 
+                        if flow_buffer_size > self.docs_buffer_size or pos>=end:
                             print("Worker %d is building instances ... " % proc_id, len(flow_buffer),len(flow_proto))
                             try:
-                                instances = self.build_instances(flow_buffer,flow_proto)    #生成实例
+                                instances = self.build_instances(flow_buffer,flow_proto)
                             except:
                                 print("has error1...")
                             print("Worker {} has {} instances. ".format(proc_id,len(instances)))
                             # Save instances.
-                            for instance in instances: 
+                            for instance in instances:
                                 pickle.dump(instance, dataset_writer)
                             flow_buffer = []
                             flow_proto = []
@@ -606,8 +592,8 @@ class BertFlowDataset(Dataset):
                         else:
                             print("find Ipv6!!")
 
-                    sentence = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line)) 
-                    if len(sentence) > 0:       #是一个列表，每个元素是一个token id  [162, 41, 2749, 16286, 15450, 4181, 144, 358, 697, 4652, 13465, 10670, 7748, 3225, 3457, 29975, 13592, 24465, 27572, 50279, 20248, 7626, 244, 3924, 14261, 29182, 6813, 3442, 41]
+                    sentence = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line))
+                    if len(sentence) > 0:
                         document.append(sentence)
 
             except:
@@ -618,26 +604,26 @@ class BertFlowDataset(Dataset):
     def build_instances(self, all_documents, flow_proto):
         assert len(all_documents) == len(flow_proto)
         instances = []
-        for _ in range(self.dup_factor):    #多次复制实例 dup_factor默认为5
+        for _ in range(self.dup_factor):
             for doc_index in range(len(all_documents)):
                 # if doc_index%500==0:
                 #     print(doc_index)
                 instances.extend(self.create_ins_from_doc(all_documents, doc_index, flow_proto))
         return instances
     def create_ins_from_doc(self, all_documents,document_index, flow_proto):
-        document = all_documents[document_index]    #一个流，一个元素为一对列表（一对突发）document[0] = [[162, 41, 2749, 16286, 15450, 4181, 144, 358, 697, 4652, 13465, 10670, 7748, 3225, 3457, 29975, 13592, 24465, 27572, ...], [41, 3522, 13864, 9818, 560, 28869, 6883, 3442, 41, 503, 5584, 2703, 6903, 21926, 2532, 706, 440, 611, 41, ...]]
+        document = all_documents[document_index]
         max_num_tokens = self.seq_length - 3
         target_seq_length = max_num_tokens
-        if random.random() < self.short_seq_prob: 
-            target_seq_length = random.randint(2, max_num_tokens)   #target_seq_length设置为2-max_num_tokens之间的一个随机数
+        if random.random() < self.short_seq_prob:
+            target_seq_length = random.randint(2, max_num_tokens)
         instances = []
         i=0
-        while i < len(document): 
+        while i < len(document):
             rnd = random.random()
-            if i==len(document)-1 or rnd < 0.4: 
+            if i==len(document)-1 or rnd < 0.4:
                 a_end = 1
-                if len(document[i]) >= 2: 
-                    a_end = random.randint(1, len(document[i]) - 1) #此处len(document[i])必须大于等于1
+                if len(document[i]) >= 2:
+                    a_end = random.randint(1, len(document[i]) - 1)
 
                 tokens_a = [] #seg 1
                 for j in range(a_end):
@@ -646,7 +632,7 @@ class BertFlowDataset(Dataset):
                 tokens_b = [] ##seg 2
                 for j in range(a_end, len(document[i])):
                     tokens_b.extend(document[i][j])
-                
+
                 truncate_seq_pair(tokens_a, tokens_b, max_num_tokens)
                 if random.random()<0.5:  #A1 A2
                     label = 0 #
@@ -668,7 +654,7 @@ class BertFlowDataset(Dataset):
                     src.extend(tokens_a)
                     src.append(self.vocab.get(SEP_TOKEN))
                     seg_pos.append(len(src))
-            elif rnd < 0.6: 
+            elif rnd < 0.6:
                 tokens_a = []
                 for j in range(len(document[i])):
                     tokens_a.extend(document[i][j])
@@ -679,19 +665,19 @@ class BertFlowDataset(Dataset):
                     if random_document_index != document_index:
                         break
 
-                random_document = all_documents[random_document_index] 
+                random_document = all_documents[random_document_index]
                 random_start = random.randint(0, len(random_document) - 1)
-                burst_ind_end = random_start+1 #len(random_document) 
+                burst_ind_end = random_start+1 #len(random_document)
                 tokens_b = []
-                for burst_ind in range(random_start, burst_ind_end): 
-                    for j in range(len(random_document[burst_ind])): 
+                for burst_ind in range(random_start, burst_ind_end):
+                    for j in range(len(random_document[burst_ind])):
                         tokens_b.extend(random_document[burst_ind][j])
                         if len(tokens_b) >= next_burst_max_length:
                             break
                 truncate_seq_pair(tokens_a, tokens_b, max_num_tokens)
                 if random_document_index == document_index:
                     if random_start>=i:
-                        label = 3 
+                        label = 3
                     else:
                         label = 4
                 else:
@@ -714,7 +700,7 @@ class BertFlowDataset(Dataset):
                     tokens_b.extend(document[i][j])
                 truncate_seq_pair(tokens_a, tokens_b, max_num_tokens)
                 if random.random()<0.5:  #A1A2 B1B2
-                    label = 3 
+                    label = 3
                     src = []
                     src.append(self.vocab.get(CLS_TOKEN))
                     src.extend(tokens_a)
@@ -734,16 +720,16 @@ class BertFlowDataset(Dataset):
                     src.append(self.vocab.get(SEP_TOKEN))
                     seg_pos.append(len(src))
             while len(src) != self.seq_length:
-                src.append(PAD_ID)      #填充
+                src.append(PAD_ID)
             if not self.dynamic_masking:
-                src, tgt_mlm = mask_seq(src, self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)  #掩码后的src  掩码的信息
+                src, tgt_mlm = mask_seq(src, self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)
                 instance = (src, tgt_mlm, label, seg_pos)
             else:
                 instance = (src, label, seg_pos)
             instance += (flow_proto[document_index],)
             instances.append(instance)
-            i+=1 
-    
+            i+=1
+
         return instances
 
 class BertPacketsDataset(Dataset):
@@ -763,80 +749,77 @@ class BertPacketsDataset(Dataset):
 
     def worker(self, proc_id, start, end):
         print("Worker %d is building dataset ... " % proc_id)
-        print(start,end)        #处理的起始行，终止行
+        print(start,end)
         set_seed(self.seed)
         #slg
-        # 创建临时目录
         temp_dir = "temp_debug"
         if not os.path.exists(temp_dir):
             os.makedirs(temp_dir)
-            
-        # 使用相对路径
+
         tmp_path = os.path.join(temp_dir, f"dataset-tmp-{proc_id}.pt")
         dataset_writer = open(tmp_path, "wb")
         #slg
-        flow_buffer = []    #所有的信息，一个元素是一个flow列表，即一个docs_buffer。
-        flow_proto = [] #存储协议信息。
-        docs_buffer = []    #flow，一个元素是一个packet 字段token列表
+        flow_buffer = []
+        flow_proto = []
+        docs_buffer = []
         # document = []   #packet，
-        pos = 0 #当前处理的行号。
+        pos = 0
         with open(self.corpus_path, mode="r", encoding="utf-8") as f:
             # try:
             #with open(self.corpus_path[:-4]+"_extra.txt", mode="r", encoding="utf-8") as fe:
-            while pos < start:   # 跳过初始行，直到达到起始位置
+            while pos < start:
                 f.readline()
                 pos += 1
-            while True:      # 主处理循环
-                line = f.readline()     #读的带 \n  读完文件后，后面读的内容均为空字符串''
+            while True:
+                line = f.readline()
                 if pos==start and line[:2] != "||":
                     print("not flow start...")
                 pos += 1
-                if pos > end:   # 如果超过结束位置，生成实例，并退出循环
-                    if len(docs_buffer) >= 1:   #处理剩余数据
+                if pos > end:
+                    if len(docs_buffer) >= 1:
                         flow_buffer.append(docs_buffer)
-                        
+
                     if len(flow_buffer) > 0:
                         # try:
-                        instances = self.build_instances(flow_buffer,flow_proto)  # 生成实例
+                        instances = self.build_instances(flow_buffer,flow_proto)
                         # except Exception as e:
                         #     print("has error2...", len(flow_buffer), len(flow_proto), e)
                         for instance in instances:
-                            pickle.dump(instance, dataset_writer)   #将instance写入dataset_writer
+                            pickle.dump(instance, dataset_writer)
                     break
 
-                # if not line.strip():    # 如果遇到空行，表示段落结束    line.strip() 方法会移除字符串 line 的首尾空白字符（包括空格、制表符、换行符等）。
-                #     if len(document) >= 1: 
+                #     if len(document) >= 1:
                 #         docs_buffer.append(document)
                 #     document = []
                     # continue
-                if line[:2] == "||" or not line:        # 如果遇到流量标记行（以 "||" 开头）或 空行结束     对于字符串来说，空字符串 "" 是假值，而任何非空字符串都是真值（truthy value）。
-                    if len(docs_buffer) >= 1:        # 如果有未处理的段落，添加到流量缓冲区
+                if line[:2] == "||" or not line:
+                    if len(docs_buffer) >= 1:
                         flow_buffer.append(docs_buffer)
                     docs_buffer = []
-                
-                    flow_buffer_size = 0    #总包数
+
+                    flow_buffer_size = 0
                     for d in flow_buffer:
-                        flow_buffer_size += len(d)  
-                    if flow_buffer_size > self.docs_buffer_size or pos>=end: #一个流超过docs_buffer_size个字符，开始生成实例，默认为100000
+                        flow_buffer_size += len(d)
+                    if flow_buffer_size > self.docs_buffer_size or pos>=end:
                         print("Worker %d is building instances ... " % proc_id, len(flow_buffer),len(flow_proto))
                         # try:
-                        instances = self.build_instances(flow_buffer,flow_proto)    #生成实例
+                        instances = self.build_instances(flow_buffer,flow_proto)
                         # except:
                         #     print("has error1...")
                         print("Worker {} has {} instances. ".format(proc_id,len(instances)))
                         # Save instances.
-                        for instance in instances: 
+                        for instance in instances:
                             pickle.dump(instance, dataset_writer)
                         flow_buffer = []
                         flow_proto = []
-                    if pos>=end or not line:  #只有文件结束才为空行，其余的行至少有一个 换行符 \n 
+                    if pos>=end or not line:
                         break
                     # line = line[2:]
-                    line = line[2:]     #能走到这里说明，line的前两字符一定为||，否则在上面会break
+                    line = line[2:]
                     # if line[13]=="4":
-                    if line[32:34] == "06": # TCP协议
+                    if line[32:34] == "06":
                         flow_proto.append(0)
-                    elif line[32:34] == "11":   # UDP协议
+                    elif line[32:34] == "11":
                         flow_proto.append(1)
                     else:
                         print("not udp or tcp")
@@ -844,15 +827,13 @@ class BertPacketsDataset(Dataset):
                 # line_len = int(len(line) / 2) - int(len(line) / 2) % 5
                 # line1 = line[:line_len]
                 # line2 = line[line_len:]
-                # sentence1 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line1)) 
-                # sentence2 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line2)) 
+                # sentence1 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line1))
+                # sentence2 = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line2))
                 # if len(sentence1) > 0 and len(sentence2) > 0:
                 #     docs_buffer.append([sentence1, sentence2])
-                # sentence = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line))  #将句子进行分词，如果 line 是 "Hello, world!"，分词器可能会将其分割为 ["Hello", ",", "world", "!"]。
                 # if len(sentence) > 0:
-                #     docs_buffer.append(sentence)   #分词后的数据包
-                sentence = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line)) 
-                if len(sentence) > 0:       #是一个列表，每个元素是一个token id  [162, 41, 2749, 16286, 15450, 4181, 144, 358, 697, 4652, 13465, 10670, 7748, 3225, 3457, 29975, 13592, 24465, 27572, 50279, 20248, 7626, 244, 3924, 14261, 29182, 6813, 3442, 41]
+                sentence = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line))
+                if len(sentence) > 0:
                     docs_buffer.append(sentence)
             # except:
             #     print("has error...")
@@ -862,11 +843,8 @@ class BertPacketsDataset(Dataset):
     def build_instances(self, all_documents, flow_proto):
         assert len(all_documents) == len(flow_proto),f"文档数 {len(all_documents)} 与流原型数 {len(flow_proto)} 不一致！"
         instances = []
-        for _ in range(self.dup_factor):    #多次复制实例   
-                                            # 每次复制时，代码中的随机选择（如 random.random() 和 random.randint()）会导致不同的 tokens_a 和 tokens_b 的组合。
-                                            # 这种随机性可以模拟不同的输入顺序和上下文，使模型能够学习到更广泛的模式。
-            # print("dup_factor:", _)       动态掩码时，dup_factor被设置为1
-            for doc_index in range(len(all_documents)): 
+        for _ in range(self.dup_factor):
+            for doc_index in range(len(all_documents)):
                 # if doc_index%500==0:
                 #     print(doc_index)
                 # print("build_instances:", doc_index)
@@ -887,22 +865,22 @@ class BertPacketsDataset(Dataset):
             return packets, 0
         rand_prob = random.random()
         lable = 0
-        if rand_prob < prob_local_reverse:  # 局部逆序
+        if rand_prob < prob_local_reverse:
             min_segment = 2
-            max_segment = min(n//2, 5)  
+            max_segment = min(n//2, 5)
             if max_segment < min_segment:
                 max_segment = min_segment
             start = random.randint(0, n - max_segment)
             length = random.randint(min_segment, max_segment)
             end = start + length
-            packets[start:end] = packets[start:end][::-1] #逆序
+            packets[start:end] = packets[start:end][::-1]
             lable = 1
-        if rand_prob < prob_local_reverse + prob_swap_k:    #随机交换k个不相邻的包
+        if rand_prob < prob_local_reverse + prob_swap_k:
             if n <= 3:
                 return packets, lable
             max_k = min((n+2)//3, 5)
             min_k = 2
-            k = random.randint(min_k, max_k)   #交换k个包（2，5）个
+            k = random.randint(min_k, max_k)
             indices = []
             while len(indices) < k:
                 idx = random.randint(0, n - 1)
@@ -910,10 +888,9 @@ class BertPacketsDataset(Dataset):
                 #     if idx not in indices:
                 #         indices.append(idx)
                 # else:
-                if all(abs(idx - i) > 1 for i in indices) and idx not in indices:   #all如果所有元素都为真，则返回True
+                if all(abs(idx - i) > 1 for i in indices) and idx not in indices:
                     indices.append(idx)
-            # 打乱选中的索引顺序并交换
-            shuffled_indices = sorted(indices, key=lambda x: random.random())   #sorted 将列表 indices 随机打乱顺序，但不改变原列表
+            shuffled_indices = sorted(indices, key=lambda x: random.random())
             while shuffled_indices==indices:
                 shuffled_indices = sorted(indices, key=lambda x: random.random())
             for i, j in zip(indices, shuffled_indices):
@@ -922,14 +899,14 @@ class BertPacketsDataset(Dataset):
         else:
             if n >= 3:
                 if random.random() < 0.5:
-                    positions = list(range(1, n, 2))  # 打乱奇数位置包
+                    positions = list(range(1, n, 2))
                 else:
-                    positions = list(range(0, n, 2)) # 打乱偶数位置包
+                    positions = list(range(0, n, 2))
             else:
-                positions = list(range(n))  # n=2时为[0,1]
+                positions = list(range(n))
             if len(positions) >= 2:
                 shuffled_positions = sorted(positions, key=lambda x: random.random())
-                while shuffled_positions == positions:      #打乱到二者不一样为止
+                while shuffled_positions == positions:
                     shuffled_positions = sorted(positions, key=lambda x: random.random())
                 for i, j in zip(positions, shuffled_positions):
                     packets[i], packets[j] = packets[j], packets[i]
@@ -937,7 +914,7 @@ class BertPacketsDataset(Dataset):
                 i, j = random.sample(range(n), 2)
                 packets[i], packets[j] = packets[j], packets[i]
             lable = 3
-        
+
         return packets, lable
 
     def create_ins_from_doc(self, all_documents,document_index, flow_proto):
@@ -946,61 +923,56 @@ class BertPacketsDataset(Dataset):
         document_index: 当前处理的文档索引。
         flow_proto: 存储协议信息的列表
         '''
-        document = deepcopy(all_documents[document_index]) #一个flow流  30个包
-        num_packet = self.num_packet    #每个流处理20个包
-        # max_num_tokens = self.seq_length - 21    # 最大token数量(421)，减去[CLS]、[SEP]和其他特殊token  400
-        if num_packet > len(document):  #如果该流的包数量小于20，则只处理该流的包数
+        document = deepcopy(all_documents[document_index])
+        num_packet = self.num_packet
+        if num_packet > len(document):
             num_packet = len(document)
-        #通过随机生成较短序列，能让模型在预训练阶段接触到更接近真实分布的长度变化，避免模型仅适应固定长度（如最大序列长度）的输入。
-        if random.random() < self.short_seq_prob:       #short_seq_prob  default=0.1 以一定概率生成较短的序列  
+        if random.random() < self.short_seq_prob:
             num_packet = random.randint(1, num_packet)
-        document = document[:num_packet]   #截断，只保留前num_packet个包
-        instances = []  #实例列表
+        document = document[:num_packet]
+        instances = []
 
         label = 0
-        if random.random() < 0.6: #0.6的概率，打乱包序
-            document, label = self.shuffle_packets(document[:num_packet])  #对前num_packet个包进行乱序
-        else:       #剩下0.4的概率，保持顺序
+        if random.random() < 0.6:
+            document, label = self.shuffle_packets(document[:num_packet])
+        else:
             label = 0
-        
+
         field_mask_list = []
-        
-        if random.random() < 0.5:   #0.5的概率，修改字段值
-            fng = FNG()     #用于生成无效字段
+
+        if random.random() < 0.5:
+            fng = FNG()
             for packet_idex in range(len(document)):
-                if random.random() < 0.6:   #每个包被修改的概率为0.6
+                if random.random() < 0.6:
                     proto_ = "tcp" if flow_proto[document_index]==0 else "udp"
                     packet = document[packet_idex]
-                    modify_count = random.randint(1, int(len(packet)*0.25)) #修改字段的数量，至少修改一个，最多修改25%的字段
-                    fng.generate_negative_sample(packet, proto_, modify_count, field_mask_list, packet_idex)  #document[packet_idex] 在函数内被修改
+                    modify_count = random.randint(1, int(len(packet)*0.25))
+                    fng.generate_negative_sample(packet, proto_, modify_count, field_mask_list, packet_idex)
         src = []
         seg_pos = []
         src.append(self.vocab.get(CLS_TOKEN))
         seg_pos.append(1)   #CLS
-        for packet_index in range(num_packet):  #【CLS 包1 SEP 包2 SEP ...... 包n SEP】
+        for packet_index in range(num_packet):
             src.extend(document[packet_index])
             src.append(self.vocab.get(SEP_TOKEN))
-            ip_seg = [packet_index*2+1] * 7 #ip头7字段
+            ip_seg = [packet_index*2+1] * 7
             seg_pos.extend(ip_seg)
             # if flow_proto[document_index] == 0:
-            #     transport_seg = [packet_index*2 + 1] * 9 #tcp头8字段 + SEP
             # else:
-            #     transport_seg = [packet_index * 10 + 2] * 9 #udp头8字段 + SEP
             transport_seg = [packet_index*2 + 2] * 4
             seg_pos.extend(transport_seg)
         while len(src) != self.seq_length:
             src.append(PAD_ID)      #PAD_ID:0
             seg_pos.append(PAD_ID)
         if not self.dynamic_masking:
-            #进行掩码
-            src, tgt_mlm = mask_seq(src, self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)  #掩码后的src 掩码信息
-            instance = (src, tgt_mlm, label, field_mask_list, seg_pos)    #掩码、改序后的src 掩码信息 数据是否连续 字段值是否有效 数据包的位置 段位置
+            src, tgt_mlm = mask_seq(src, self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)
+            instance = (src, tgt_mlm, label, field_mask_list, seg_pos)
         else:
             instance = (src, label, field_mask_list, seg_pos)
-        instance += (flow_proto[document_index],)       #协议
+        instance += (flow_proto[document_index],)
         instances.append(instance)
-        # i+=1 
-    
+        # i+=1
+
         return instances
 
 class BertDataLoader(DataLoader):
@@ -1023,7 +995,7 @@ class BertDataLoader(DataLoader):
             masked_words_num = 0
 
             for ins in instances:
-                if len(ins) == 4: 
+                if len(ins) == 4:
                     src.append(ins[0])
                     masked_words_num += len(ins[1])
                     tgt_mlm.append([0] * len(ins[0]))
@@ -1057,15 +1029,15 @@ class BertFlowDataLoader(DataLoader):
             if self.start + self.batch_size >= self.end:
                 instances = self.buffer[self.start:]
             else:
-                instances = self.buffer[self.start: self.start + self.batch_size]   #一次取出batch_size的数据量
+                instances = self.buffer[self.start: self.start + self.batch_size]
 
             self.start += self.batch_size
 
-            src = []    #源序列（输入文本）。 [CLS] 开头，以 [SEP] 结尾，中间可能包含 [MASK] 标记。
-            tgt_mlm = []    #掩码语言模型（MLM）的目标标签。  格式为 [(position, target_token_id), ...]，表示被掩码的位置及其目标 Token ID。
-            is_next = []    #下一句预测（NSP）的目标标签。  0 表示句子对是连续的。  1 表示句子对是随机拼接的。
-            seg = []    #段嵌入  表示不同段落的起始位置，格式为 [segment1_end, segment2_end, ...]
-            proto = []  #协议信息  整数，表示当前实例的协议类型（例如，0 表示 TCP，1 表示 UDP）。
+            src = []
+            tgt_mlm = []
+            is_next = []
+            seg = []
+            proto = []
             '''
             具体实例：
             instance = (
@@ -1079,10 +1051,10 @@ class BertFlowDataLoader(DataLoader):
             masked_words_num = 0
 
             for ins in instances:
-                if len(ins) == 5: 
-                    src.append(ins[0])  #源序列
-                    masked_words_num += len(ins[1]) #被掩码的单词数量
-                    tgt_mlm.append([0] * len(ins[0]))   #初始化tgt列表
+                if len(ins) == 5:
+                    src.append(ins[0])
+                    masked_words_num += len(ins[1])
+                    tgt_mlm.append([0] * len(ins[0]))
                     for mask in ins[1]:
                         tgt_mlm[-1][mask[0]] = mask[1]
                     is_next.append(ins[2])
@@ -1111,18 +1083,18 @@ class BertPacketsDataLoader(DataLoader):
     def __iter__(self):
         while True:
             while self._empty():
-                self._fill_buf()        #每个进程平均加载实例，每个进程最多加载25600个实例。
+                self._fill_buf()
             if self.start + self.batch_size >= self.end:
                 instances = self.buffer[self.start:]
             else:
-                instances = self.buffer[self.start: self.start + self.batch_size]   #一次取出batch_size的数据量
+                instances = self.buffer[self.start: self.start + self.batch_size]
             self.start += self.batch_size
-            src = []    #源序列（输入文本）。 [CLS] 开头，以 [SEP] 结尾，中间可能包含 [MASK] 标记。
-            tgt_mlm = []    #掩码语言模型（MLM）的目标标签。  格式为 [(position, target_token_id), ...]，表示被掩码的位置及其目标 Token ID。
-            label = []    #下一句预测（NSP）的目标标签。  0 表示句子对是连续的。  1 表示局部逆序。 2表示不相邻交换k个包 3表示间隔置换
-            field_mask = []    #字段替换  表示被随机修改的字段，格式为 [(field_index, field_value), ...]
-            seg = []   #段嵌入  表示不同段，格式为 [0,0,0,0,1,1,1,1,10,10,10,10,11,11,11,11...]  每个包的字段值相同
-            proto = []  #协议信息  整数，表示当前实例的协议类型（例如，0 表示 TCP，1 表示 UDP）。
+            src = []
+            tgt_mlm = []
+            label = []
+            field_mask = []
+            seg = []
+            proto = []
             '''
             具体实例：
             instance = (
@@ -1137,10 +1109,10 @@ class BertPacketsDataLoader(DataLoader):
             masked_words_num = 0
             modified_field_num = 0
             for ins in instances:
-                if len(ins) == 6: 
-                    src.append(ins[0])  #源序列
-                    masked_words_num += len(ins[1]) #被掩码的单词数量
-                    tgt_mlm.append([0] * len(ins[0]))   #初始化tgt列表
+                if len(ins) == 6:
+                    src.append(ins[0])
+                    masked_words_num += len(ins[1])
+                    tgt_mlm.append([0] * len(ins[0]))
                     for mask in ins[1]:
                         tgt_mlm[-1][mask[0]] = mask[1]
                     label.append(ins[2])

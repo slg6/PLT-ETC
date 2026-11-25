@@ -2,7 +2,7 @@ import torch.nn as nn
 from uer.utils import *
 from torch import Tensor
 
-class PositionwiseFeedForward(nn.Module):   #这是前馈神经网络(Feed Forward Network, FFN)层
+class PositionwiseFeedForward(nn.Module):
     """ Feed Forward Layer. """
     def __init__(self, hidden_size, feedforward_size, hidden_act, has_bias=True):
         super(PositionwiseFeedForward, self).__init__()

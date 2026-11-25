@@ -10,17 +10,17 @@ class Vocab(object):
     """
     """
     def __init__(self):
-        self.w2i = {} 
-        self.i2w = [] 
-        self.w2c = {} 
+        self.w2i = {}
+        self.i2w = []
+        self.w2c = {}
         self.reserved_vocab_path = \
             os.path.abspath(os.path.join(os.path.dirname(__file__), "../../models/reserved_vocab.txt"))
-        
-    def load(self, vocab_path, is_quiet=False): #加载词
+
+    def load(self, vocab_path, is_quiet=False):
         with open(vocab_path, mode="r", encoding="utf-8") as reader:
             for index, line in enumerate(reader):
                 w = line.strip("\n").split()[0] if line.strip() else line.strip("\n")
-                self.w2i[w] = index #token和id一一对应
+                self.w2i[w] = index
                 self.i2w.append(w)
         if not is_quiet:
             print("Vocabulary size: ", len(self))
@@ -34,12 +34,12 @@ class Vocab(object):
 
     def get(self, w):
         return self.w2i[w]
-        
+
     def __len__(self):
         return len(self.i2w)
-        
+
     def worker(self, corpus_path, tokenizer, start, end):
-        """ 
+        """
         Worker that creates vocabulary from corpus[start:end].
         """
         w2i, i2w, w2c = {}, [], {}
@@ -61,7 +61,7 @@ class Vocab(object):
                         w2c[t] += 1
                 if pos >= end - 1:
                     return (w2i, i2w, w2c)
-                            
+
     def union(self, vocab_list):
         """ Union vocab in all workers. """
         w2i, i2w, w2c = {}, [], {}
@@ -75,7 +75,7 @@ class Vocab(object):
                 else:
                     w2c[w] += w2c_p[w]
         return (w2i, i2w, w2c)
-                    
+
     def build(self, corpus_path, tokenizer, workers_num=1, min_count=1):
         """ Build vocabulary from the given corpus. """
         print("Start %d workers for building vocabulary..." % workers_num)
@@ -88,7 +88,7 @@ class Vocab(object):
             vocab_list.append((pool.apply_async(func=self.worker, args=[corpus_path, tokenizer, start, end])))
         pool.close()
         pool.join()
-        
+
         # Union vocab in all workers.
         w2i, i2w, w2c = self.union(vocab_list)
         # Sort w2c according to word count.
@@ -107,4 +107,4 @@ class Vocab(object):
                 break
             if w not in self.w2i:
                 self.w2i[w], self.w2c[w] = len(self.i2w), c
-                self.i2w.append(w)           
+                self.i2w.append(w)
