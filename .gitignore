@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pt
+*.bin*
+*.tsv
+*.bin
+*.log
+# 忽略 fine_data_flow 下所有层级目录中的 tsv 数据文件
+traffictransformer/fine-data/fine_data_flow/**/*.tsv
+
+loopedtransformer/run/*
+loopedtransformer/finetune-output-sup/**/none
